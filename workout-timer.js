@@ -55,10 +55,9 @@
     persist(); mount();
   }
   // Called only after the normal workout completion flow was accepted.
-  function complete(k, preserveManualRunMinutes = false) {
+  function complete(k, preserveManualRunMinutes = false, at = nowMs()) {
     const t = timer(k), l = record(k);
     if (!t || !['running','paused'].includes(t.state)) return false;
-    const at = nowMs();
     t.accumulated_ms = activeMs(t, at);
     t.ended_at = stamp(at);
     t.running_since = null;
@@ -191,16 +190,16 @@
   window.render = function (...args) { previousRender.apply(this,args); mount(); };
   const previousFinish = window.finishSession;
   window.finishSession = function (...args) {
-    const k = logKey(), wasDone = record(k)?.status === 'done';
+    const k = logKey(), wasDone = record(k)?.status === 'done', finishedAt = nowMs();
     const result = previousFinish.apply(this,args);
-    if (!wasDone && record(k)?.status === 'done') complete(k);
+    if (!wasDone && record(k)?.status === 'done') complete(k,false,finishedAt);
     return result;
   };
   const previousSaveRun = window.saveRun;
   window.saveRun = function (...args) {
-    const k = logKey(), preserve = Boolean(document.getElementById('run-time')?.value.trim());
+    const k = logKey(), preserve = Boolean(document.getElementById('run-time')?.value.trim()), finishedAt = nowMs();
     const result = previousSaveRun.apply(this,args);
-    if (record(k)?.status === 'done') complete(k,preserve);
+    if (record(k)?.status === 'done') complete(k,preserve,finishedAt);
     return result;
   };
   window.strydeWorkoutTimer = {start,pause,resume,complete,editTimes,mount};
