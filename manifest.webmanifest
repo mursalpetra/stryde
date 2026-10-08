@@ -1,0 +1,9 @@
+{
+  "name": "STRYDE — Strength & Running",
+  "short_name": "STRYDE",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#10151d",
+  "theme_color": "#10151d",
+  "description": "Mobile-first running and strength tracker"
+}
