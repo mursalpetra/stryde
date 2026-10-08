@@ -7,15 +7,18 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="STRYDE">
-<meta name="stryde-build" content="20261008-run-day1">
-<title>STRYDE · Today</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/svg+xml" href="stryde-icon.svg">
+<meta name="stryde-build" content="20261008-studio1">
+<title>STRYDE · Training Studio</title>
+<link rel="manifest" href="manifest.webmanifest?v=20261008-studio1">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=20261008-studio1">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20261008-studio1">
+<link rel="icon" type="image/svg+xml" href="assets/stryde-wordmark.svg">
 <link rel="stylesheet" href="stryde-v2.css?v=3">
 <link rel="stylesheet" href="account-ui.css?v=20261008-auth1">
 <link rel="stylesheet" href="workout-timer.css?v=20261008-timing1">
 <link rel="stylesheet" href="experience-update.css?v=20261008-green-hover1">
 <link rel="stylesheet" href="run-day.css?v=20261008-run-day1">
+<link rel="stylesheet" href="training-hub.css?v=20261008-studio1">
 </head>
 <body>
 <main id="root"></main>
@@ -24,8 +27,7 @@
 <script>window.strydeNavigationHistory = window.history;</script>
 <script src="v2-core.js?v=2"></script>
 <script>
-// The legacy lift-history function shares the browser's history name.
-// Preserve its workout lookups while allowing OAuth to clear its query safely.
+// Preserve browser navigation alongside the legacy lift-history helper.
 if (typeof window.history === 'function' && window.strydeNavigationHistory) {
   window.history.replaceState = window.strydeNavigationHistory.replaceState.bind(window.strydeNavigationHistory);
 }
@@ -33,10 +35,14 @@ if (typeof window.history === 'function' && window.strydeNavigationHistory) {
 <script src="weight-units.js?v=20261008-runs-zones3"></script>
 <script src="v2-views.js?v=20261008-auth1"></script>
 <script src="v2-actions.js?v=1"></script>
-<script src="account-cloud.js?v=20261008-auth1"></script>
-<script src="strava-runs.js?v=20261008-runs-zones3"></script>
+<script src="account-cloud.js?v=20261008-studio1"></script>
+<script src="strava-runs.js?v=20261008-studio1"></script>
 <script src="anatomy-zones.js?v=20261008-green-hover1"></script>
 <script src="workout-timer-full.js?v=20261008-runs-zones3"></script>
 <script src="run-day.js?v=20261008-run-day1"></script>
+<script src="progress-model.js?v=20261008-studio1"></script>
+<script src="training-hub.js?v=20261008-studio1"></script>
+<script src="goal-journal.js?v=20261008-studio1"></script>
+<script src="run-weather.js?v=20261008-studio1"></script>
 </body>
 </html>
