@@ -7,26 +7,34 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="STRYDE">
-<meta name="stryde-build" content="20261008-runs-zones2">
+<meta name="stryde-build" content="20261008-runs-zones3">
 <title>STRYDE · Today</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="stryde-icon.svg">
 <link rel="stylesheet" href="stryde-v2.css?v=3">
 <link rel="stylesheet" href="account-ui.css?v=20261008-auth1">
 <link rel="stylesheet" href="workout-timer.css?v=20261008-timing1">
-<link rel="stylesheet" href="experience-update.css?v=20261008-runs-zones2">
+<link rel="stylesheet" href="experience-update.css?v=20261008-runs-zones3">
 </head>
 <body>
 <main id="root"></main>
 <nav id="nav" aria-label="Main navigation"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>window.strydeNavigationHistory = window.history;</script>
 <script src="v2-core.js?v=2"></script>
-<script src="weight-units.js?v=20261008-runs-zones2"></script>
+<script>
+// The legacy lift-history function shares the browser's history name.
+// Preserve its workout lookups while allowing OAuth to clear its query safely.
+if (typeof window.history === 'function' && window.strydeNavigationHistory) {
+  window.history.replaceState = window.strydeNavigationHistory.replaceState.bind(window.strydeNavigationHistory);
+}
+</script>
+<script src="weight-units.js?v=20261008-runs-zones3"></script>
 <script src="v2-views.js?v=20261008-auth1"></script>
 <script src="v2-actions.js?v=1"></script>
 <script src="account-cloud.js?v=20261008-auth1"></script>
-<script src="strava-runs.js?v=20261008-runs-zones2"></script>
-<script src="anatomy-zones.js?v=20261008-runs-zones2"></script>
-<script src="workout-timer-full.js?v=20261008-runs-zones2"></script>
+<script src="strava-runs.js?v=20261008-runs-zones3"></script>
+<script src="anatomy-zones.js?v=20261008-runs-zones3"></script>
+<script src="workout-timer-full.js?v=20261008-runs-zones3"></script>
 </body>
 </html>
