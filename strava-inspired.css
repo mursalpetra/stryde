@@ -1,0 +1,65 @@
+/* STRYDE v3 — mobile-first activity dashboard */
+:root{color-scheme:light!important;--bg:#f6f6f5!important;--panel:#fff!important;--panel2:#fff!important;--line:#e7e8ea!important;--text:#202326!important;--muted:#747a80!important;--accent:#fc4c02!important;--accent2:#fc4c02!important}
+html{background:#f6f6f5}body{background:#f6f6f5!important;color:#202326!important;padding:0 0 calc(94px + env(safe-area-inset-bottom))!important;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif!important}
+main{max-width:640px!important;padding:0 16px 22px!important}
+h1{font-size:28px!important;font-weight:850!important;letter-spacing:-1.1px!important;margin:9px 0 18px!important;color:#202326!important}
+h2{color:#202326!important;font-weight:820!important}
+p,small,.muted{color:#6d747b!important}
+.tag{color:#fc4c02!important;letter-spacing:1.6px!important;font-size:10px!important}
+.card{background:#fff!important;border:1px solid #ececed!important;border-radius:17px!important;box-shadow:0 2px 9px #1e25290a!important;padding:18px!important;margin:12px 0!important}
+.card .row{border-bottom:1px solid #edf0f1!important}
+.row strong,.guide strong{color:#222!important}
+.row{border-bottom:1px solid #eceef0!important}
+button{border-radius:11px!important;background:#f1f2f3!important;border:1px solid #e6e7e8!important;color:#222!important;font-weight:750!important}
+button.primary,.focus-actions .primary{background:#fc4c02!important;color:white!important;border-color:#fc4c02!important;box-shadow:none!important}
+button:disabled{opacity:.35}
+button:focus-visible,input:focus-visible{outline:2px solid #fc4c02!important}
+a{color:#fc4c02!important}
+input,select,textarea{background:#fafafa!important;border:1px solid #dadddf!important;color:#222!important;border-radius:11px!important}
+label{color:#545a60!important}
+.stat{background:#fff8f4!important;border:1px solid #ffede3!important;border-radius:14px!important}
+.stat b{color:#242424!important}
+nav{background:#fff!important;border-top:1px solid #e9ebed!important;box-shadow:0 -5px 18px #0000000b!important;gap:2px!important;padding:7px 8px calc(8px + env(safe-area-inset-bottom))!important}
+nav button{background:transparent!important;border:0!important;color:#85898d!important;font-size:11px!important;border-radius:9px!important;padding:11px 2px!important;line-height:1.35!important}
+nav button.on{background:#fff2eb!important;color:#f04a05!important}
+#cloud-status{max-width:640px!important;padding:0 16px!important}
+#cloud-status .card{background:#fff!important;border:1px solid #f0e5df!important;margin:10px 0!important}
+#cloud-status .card>strong{color:#fa4b03!important}
+#cloud-status .card>p{color:#777!important}
+#cloud-status button{background:#fff3eb!important;color:#ef4a06!important;border:1px solid #ffd9c3!important}
+#cloud-status button.primary{background:#fc4c02!important;color:#fff!important}
+.stryde-top{background:#fff;position:relative;border-bottom:1px solid #eceeef;margin:0 -16px 18px;padding:20px 17px 17px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.stryde-logo{font-size:25px;font-weight:950;font-style:italic;letter-spacing:-1.8px;color:#fc4c02;line-height:1}
+.stryde-sub{font-size:10px;color:#888;letter-spacing:.4px;margin-top:5px;font-weight:600}
+.stryde-avatar{width:40px;height:40px;border-radius:50%;background:#ffede4;color:#fc4c02;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:850}
+.today-heading{display:flex;justify-content:space-between;align-items:center;margin:5px 0 2px}
+.today-heading .eyebrow{font-size:11px;color:#858585;text-transform:uppercase;font-weight:750;letter-spacing:1px}
+.today-heading h1{margin:2px 0 7px!important;font-size:28px!important}
+.today-heading .today-date{font-size:12px;color:#888}
+.week-card{padding:15px!important}
+.week-card>.row:first-child{padding:0 0 12px!important}
+.week-card>.row:first-child strong{font-size:13px!important}
+.week-strip{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:5px!important;margin:15px -2px 17px!important;touch-action:pan-y}
+.day-chip{background:#f7f8f9!important;border:1px solid #f1f2f3!important;color:#777!important;box-shadow:none!important;padding:11px 0!important;border-radius:12px!important;min-width:0!important}
+.day-chip span{font-size:10px!important;font-weight:750!important}
+.day-chip b{font-size:18px!important;color:#34383a!important}
+.day-chip small{font-size:12px!important}
+.day-chip.selected{background:#fc4c02!important;border-color:#fc4c02!important;color:white!important}
+.day-chip.selected b{color:white!important}
+.day-chip.today:not(.selected){border-color:#fc4c02!important;color:#fc4c02!important}
+.day-focus{background:linear-gradient(145deg,#fff8f3,#fff)!important;border:1px solid #ffe2d2!important;border-radius:17px!important;padding:22px 17px!important;min-height:205px!important}
+.day-focus .tag{color:#f04a05!important}
+.day-focus h2{color:#202326!important;font-size:32px!important;letter-spacing:-1.2px!important;margin:8px 0 5px!important}
+.day-focus p{color:#5f656a!important;font-size:15px!important;min-height:36px!important}
+.focus-actions{margin-top:18px!important}
+.focus-actions button:not(.primary){background:#fff!important}
+.milestone-hero{background:linear-gradient(110deg,#ff6727,#f5430a)!important;border:0!important;color:white!important;padding:19px 20px!important}
+.milestone-hero h2,.milestone-hero .tag,.milestone-hero p,.milestone-hero .muted{color:white!important}
+.milestone-hero h2{font-size:17px!important;margin:5px 0!important}
+.milestone-hero .milestone-count{font-size:44px;font-weight:900;letter-spacing:-2px;line-height:1.1;color:white}
+.milestone-hero .milestone-count span{font-size:13px;letter-spacing:0;font-weight:650;margin-left:9px}
+.milestone-hero button{background:#ffffff30!important;color:white!important;border-color:#ffffff55!important}
+.guide{border-bottom:1px solid #eceef0!important}
+.guide div{color:#222!important}
+.guide .muted{color:#73777c!important}
+@media(max-width:380px){main{padding:0 12px 20px!important}.stryde-top{margin:0 -12px 16px}.day-chip{padding:10px 0!important}.day-chip span{font-size:9px!important}.day-chip b{font-size:16px!important}.card{padding:14px!important}}
