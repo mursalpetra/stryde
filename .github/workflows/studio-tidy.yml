@@ -1,0 +1,30 @@
+name: Finalize STRYDE studio
+on:
+  push:
+    branches: [main]
+    paths: ['tools/studio-tidy.mjs', '.github/workflows/studio-tidy.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stryde-studio-tidy
+  cancel-in-progress: false
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: node tools/studio-tidy.mjs
+      - name: Check every new feature script
+        run: |
+          for f in training-hub.js progress-model.js goal-journal.js run-weather.js account-cloud.js strava-runs.js; do node --check "$f"; done
+      - name: Commit scoped integration changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add training-hub.js strava-runs.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Finalize coaching-first Progress layout and Strava refresh states'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
