@@ -1,0 +1,34 @@
+/* Session timing, scoped to avoid changing existing account and exercise fields. */
+.workout-clock{margin:16px 0;padding:16px;border:1px solid #ffddc9;border-radius:16px;background:#fff7f2;color:#202326}
+.workout-clock-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.workout-clock-label{display:block;color:#b74614;font-size:10px;font-weight:800;letter-spacing:1px;line-height:1.4}
+.workout-clock-head strong{display:block;font-size:30px;line-height:1.25;letter-spacing:-1px;font-variant-numeric:tabular-nums;margin-top:5px}
+.workout-time-buttons{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;max-width:62%}
+.workout-time-buttons .btn{font-size:12px;min-height:44px;padding:10px 12px}
+.workout-time-link{border:0;padding:8px 0;background:none;color:#b53b09;font:600 12px/1.35 inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:36px}
+.workout-clock-times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:16px 0 0;gap:8px;padding-top:12px;border-top:1px solid #f3d9cd}
+.workout-clock-times dt{font-size:11px;color:#73655f;margin-bottom:4px}
+.workout-clock-times dd{margin:0;font-size:14px;color:#262626;font-weight:750;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.workout-clock-note{font-size:11px;color:#73655f;line-height:1.45;margin:12px 0 0}
+.workout-clock.compact{padding:10px 13px;margin:12px 0}
+.workout-clock.compact .workout-clock-head strong{font-size:22px}
+.workout-clock-return{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:13px 15px;margin:13px 0;border:1px solid #ffd6c0;border-radius:13px;background:#fff3eb;color:#be420e;text-align:left;cursor:pointer;font:600 12px/1.4 inherit}
+.workout-clock-return strong,.workout-clock-return small{display:block}
+.workout-clock-return small{margin-top:4px;color:#7b5949}
+.workout-timing-history h3{margin:0 0 8px}
+.workout-time-history-row{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:13px 0;border:0;border-bottom:1px solid #eee;background:white;text-align:left;cursor:pointer;color:#262626;font-size:13px}
+.workout-time-history-row:last-child{border-bottom:0}
+.workout-time-history-row strong{font-size:13px;line-height:1.4}
+.workout-time-history-row small{display:block;color:#73777c;font-size:11px;line-height:1.5;margin-top:4px}
+.workout-time-history-row>span:last-child{flex-shrink:0;text-align:right;font-variant-numeric:tabular-nums}
+.workout-time-dialog{box-sizing:border-box;width:calc(100% - 28px);max-width:430px;max-height:90dvh;overflow:auto;border:1px solid #e8e8e8;border-radius:20px;padding:23px;background:#fff;color:#202326}
+.workout-time-dialog::backdrop{background:#151a2470}
+.workout-time-dialog h2{font-size:23px;margin:0 0 8px}
+.workout-time-dialog p{font-size:13px;line-height:1.5;color:#686d73}
+.workout-time-dialog label{display:block;font-size:12px;font-weight:700;margin-top:14px}
+.workout-time-dialog input{box-sizing:border-box;width:100%;min-width:0;font-size:16px;min-height:46px;border:1px solid #d9dde0;background:white;border-radius:10px;padding:10px;margin-top:6px}
+.workout-time-dialog .workout-time-buttons{max-width:none;margin-top:18px}
+.workout-time-dialog .time-edit-result{color:#aa3b0a;font-weight:650}
+.workout-time-dialog .time-edit-error{color:#ac2323}
+.workout-clock button:focus-visible,.workout-clock-return:focus-visible,.workout-time-history-row:focus-visible{outline:2px solid #fc4c02;outline-offset:2px}
+@media(max-width:360px){.workout-clock{padding:12px}.workout-clock-head{gap:8px}.workout-time-buttons .btn{padding:9px;font-size:11px}.workout-clock-times dd{font-size:13px}.workout-clock-head strong{font-size:27px}.workout-time-dialog{padding:17px}}
