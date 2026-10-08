@@ -1,0 +1,49 @@
+/* Scoped account UI: keep authentication off the training dashboard. */
+.stryde-account-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-shrink:0;min-height:44px;padding:9px 14px;border:1px solid #ffd8c6;border-radius:999px;background:#fff1e9;color:#d64200;font:750 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}
+.stryde-account-button.is-signed-in{padding:5px 10px 5px 5px;border-color:#e9eaec;background:#fff;color:#25282c}
+.stryde-account-initial{width:33px;height:33px;display:inline-grid;place-items:center;flex-shrink:0;border-radius:50%;background:#fc4c02;color:#fff;font-size:15px;font-weight:800}
+.stryde-account-button:focus-visible{outline:3px solid #fc4c02;outline-offset:3px}
+body.stryde-auth-open{overflow:hidden}
+.stryde-auth-dialog{box-sizing:border-box;width:calc(100% - 32px);max-width:440px;max-height:calc(100dvh - 32px);margin:auto;padding:0;border:1px solid #efeff0;border-radius:26px;background:#fff;color:#1c2024;box-shadow:0 30px 100px #14202a40;overflow:auto;font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.stryde-auth-dialog::backdrop{background:#15212d80;backdrop-filter:blur(4px)}
+.stryde-auth-dialog[open]{animation:stryde-auth-enter .17s ease-out}
+.stryde-auth-shell{position:relative;padding:34px 28px 23px}
+.stryde-auth-close{position:absolute;right:12px;top:10px;width:44px;height:44px;border:0;border-radius:50%;background:#f5f5f5;color:#4c5156;font:28px/1 sans-serif;cursor:pointer}
+.stryde-auth-brand{font-size:26px;line-height:1;font-weight:950;letter-spacing:-1.4px;font-style:italic;color:#fc4c02;margin:4px 0 28px}
+.stryde-auth-dialog h2{font-size:29px;letter-spacing:-1px;line-height:1.15;margin:0 0 9px;font-weight:820;color:#1b1e22}
+.stryde-auth-dialog .stryde-auth-lead{color:#697079;font-size:14px;line-height:1.55;margin:0 0 23px;max-width:32ch}
+.stryde-auth-dialog label{display:block;color:#30373f;font-size:13px;font-weight:700;margin:14px 0 6px}
+.stryde-auth-dialog input:not([type="checkbox"]){box-sizing:border-box;display:block;width:100%;min-height:50px;border:1px solid #d8dde2;border-radius:12px;background:#fafbfc;font:400 16px/1.4 inherit;color:#1d2329;padding:12px 14px;margin:0;box-shadow:none}
+.stryde-auth-dialog input::placeholder{color:#8b929a}
+.stryde-auth-dialog input:focus{border-color:#fc4c02;outline:2px solid #ffede5;outline-offset:1px}
+.stryde-password-field{position:relative}
+.stryde-password-field input{padding-right:70px!important}
+.stryde-password-field button{position:absolute;right:4px;top:3px;min-width:60px;min-height:44px;border:0;background:none;color:#555f69;font-size:12px;font-weight:750;cursor:pointer}
+.stryde-auth-dialog .stryde-remember{display:flex;align-items:center;gap:11px;min-height:44px;margin:12px 0 0;font-size:13px;font-weight:650;cursor:pointer}
+.stryde-auth-dialog .stryde-remember input{display:block;flex-shrink:0;width:20px;height:20px;min-height:20px;accent-color:#fc4c02;margin:0;padding:0;border-radius:5px}
+.stryde-auth-dialog .stryde-auth-hint{margin:1px 0 14px;font-size:11px;line-height:1.5;color:#797f85}
+.stryde-auth-message{min-height:0;font-size:13px;color:#53645a;line-height:1.5;margin:6px 0 12px;overflow-wrap:anywhere}
+.stryde-auth-message:empty{display:none}
+.stryde-auth-message.is-error{background:#fff0eb;border-radius:10px;padding:10px 12px;color:#a43813}
+.stryde-auth-primary,.stryde-auth-secondary{box-sizing:border-box;display:block;width:100%;min-height:48px;padding:12px 16px;border-radius:12px;font:750 14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}
+.stryde-auth-primary{background:#fc4c02;border:1px solid #fc4c02;color:#fff;margin:9px 0}
+.stryde-auth-primary:disabled{opacity:.6;cursor:wait}
+.stryde-auth-secondary{background:#fff;border:1px solid #dce1e5;color:#30373e;margin:9px 0}
+.stryde-auth-switch{text-align:center;font-size:13px;color:#6e757d;margin:19px 0 2px}
+.stryde-auth-switch button,.stryde-auth-link{min-height:44px;border:0;background:none;color:#d74307;font:700 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;padding:6px 8px}
+.stryde-auth-link{display:block;margin:3px auto;text-align:center;color:#697078}
+.stryde-auth-dialog button:focus-visible{outline:3px solid #fc4c02;outline-offset:2px}
+.stryde-account-identity{display:flex;align-items:center;gap:11px;margin:22px 0 15px;min-width:0}
+.stryde-account-identity .stryde-account-initial{width:44px;height:44px;font-size:19px}
+.stryde-account-identity div{min-width:0}
+.stryde-account-identity strong{display:block;font-size:14px;color:#2d333a}
+.stryde-account-identity div>span{display:block;font-size:12px;color:#757d85;overflow-wrap:anywhere;margin-top:3px}
+.stryde-sync-summary{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1px solid #e6e9eb;border-radius:12px;background:#fafbfb;font-size:12px;color:#545e65;margin:9px 0}
+.stryde-status-dot{width:7px;height:7px;flex-shrink:0;background:#fc4c02;border-radius:50%}
+.stryde-sync-review{background:#fff7f2;border:1px solid #ffe0d0;border-radius:14px;padding:14px;margin:14px 0}
+.stryde-sync-review h3{font-size:16px;margin:0 0 6px;letter-spacing:-.3px}
+.stryde-sync-review p{font-size:12px;line-height:1.55;color:#765948;margin:6px 0 12px}
+.stryde-account-actions{margin:13px 0 3px}
+@keyframes stryde-auth-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:520px){.stryde-auth-dialog{width:100%;max-width:100%;margin:auto 0 0;border:0;border-radius:26px 26px 0 0;max-height:calc(100dvh - 22px)}.stryde-auth-shell{padding:30px 24px calc(20px + env(safe-area-inset-bottom))}.stryde-auth-brand{margin-bottom:25px}}
+@media(prefers-reduced-motion:reduce){.stryde-auth-dialog[open]{animation:none}}
