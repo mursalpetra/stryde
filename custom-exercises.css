@@ -1,0 +1,15 @@
+/* Custom extra-workout entries only. Keep the existing mobile form and per-user data. */
+.hub-custom-fields{background:#fff5ef;border:1px solid #ffdccb;border-radius:13px;padding:13px;margin:12px 0}
+.hub-custom-fields[hidden]{display:none}
+.hub-custom-fields label:first-child{margin-top:0}
+.hub-custom-fields .hub-footnote{margin-bottom:0}
+.hub-custom-message{font-size:12px;line-height:1.5;color:#5e483c;margin:10px 0}
+.hub-custom-message:empty{display:none}
+.hub-custom-badge{display:inline-block;background:#fff0e6;color:#a0390a;font-size:10px;font-weight:750;border-radius:99px;padding:4px 7px;margin-left:8px;vertical-align:middle}
+.hub-custom-history{padding:14px 0;border-bottom:1px solid #ebeef0}
+.hub-custom-history:last-child{border-bottom:0}
+.hub-custom-history strong,.hub-custom-history small,.hub-custom-history span{display:block;overflow-wrap:anywhere}
+.hub-custom-history strong{font-size:14px}.hub-custom-history small{font-size:11px;color:#70767b;margin:4px 0}.hub-custom-history span{font-size:13px;line-height:1.5}
+#hub-extra-exercises legend{max-width:100%;overflow-wrap:anywhere}
+#hub-extra-form select{max-width:100%}
+#hub-extra-form [data-hub="add-exercise"]{margin-top:10px;width:100%;min-height:44px}

@@ -10,8 +10,20 @@
  const median=a=>{if(!a.length)return null;const v=a.slice().sort((a,b)=>a-b),i=Math.floor(v.length/2);return v.length%2?v[i]:(v[i-1]+v[i])/2};
  const pct=(a,b)=>a>0?(b/a-1)*100:null;
  const text=v=>String(v??'').trim();
- const unit=s=>/per hand|each hand/.test(s||'')?'lbs per hand':/^(lb|lbs|lb total|lbs total)$/.test(s||'')?'lbs':s||'unrecorded';
+ const unit=s=>{const u=text(s).toLowerCase();if(/^(kg|kgs|kilograms?) (per|each) hand$/.test(u))return 'kg per hand';if(/^(lb|lbs|pounds?) (per|each) hand$/.test(u))return 'lbs per hand';if(/^(lb|lbs|pounds?)( total)?$/.test(u))return 'lbs';if(/^(kg|kgs|kilograms?)( total)?$/.test(u))return 'kg';return u||'unrecorded';};
  const reps=e=>String(e?.reps||'').split(',').map(x=>n(x.trim())).filter(x=>x!==null&&x>0&&x<=100);
+ // Custom lifts keep stable IDs and their name/unit in each log. Never append them to EX,
+ // whose numeric IDs identify the existing prescribed exercises on every device.
+ const customId = id => /^custom-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id));
+ function exerciseInfo(id, entry = {}, s = state) {
+  if (/^\d+$/.test(String(id)) && EX[Number(id)]) return {...EX[Number(id)],id:Number(id),custom:false};
+  if (!customId(id)) return null;
+  const saved = s.customExercises?.[id];
+  const name = text(entry.name || saved?.name).slice(0,80);
+  if (!name) return null;
+  return {id:String(id),name,unit:entry.unit || saved?.unit || 'unrecorded',custom:true};
+ }
+
  function logDate(key,l){
   if(validDate(l.performed_on))return l.performed_on;
   const t=l.timing?.started_at||l.started_at;if(t&&Number.isFinite(Date.parse(t)))return iso(t);
@@ -44,16 +56,17 @@
  function liftChanges(rows,p){
   const by=new Map();
   for(const r of rows.filter(r=>r.kind==='strength'&&r.date>=p.start&&r.date<=p.end))for(const [i,e] of Object.entries(r.exercises||{})){
-   if(!EX[Number(i)]||e.form!=='good'||!['easy','moderate'].includes(e.effort)||!(n(e.weight)>0))continue;
+   const definition=exerciseInfo(i,e);
+   if(!definition||e.form!=='good'||!['easy','moderate'].includes(e.effort)||!(n(e.weight)>0))continue;
    const rr=reps(e);if(!rr.length||rr.length!==String(e.reps).split(',').length||rr.some(x=>x>20))continue;
    const u=unit(e.unit);if(u==='machine display'||u==='unrecorded')continue;
    const group=[i,u,rr.length,e.effort,text(e.setup||e.equipment).toLowerCase()].join('|');
-   if(!by.has(group))by.set(group,[]);by.get(group).push({id:r.id,date:r.date,i:Number(i),weight:n(e.weight),reps:rr.reduce((a,b)=>a+b,0)/rr.length,sets:rr.length,unit:u,setup:e.setup||e.equipment||'',effort:e.effort});
+   if(!by.has(group))by.set(group,[]);by.get(group).push({id:r.id,date:r.date,i:definition.id,name:definition.name,custom:definition.custom,weight:n(e.weight),reps:rr.reduce((a,b)=>a+b,0)/rr.length,sets:rr.length,unit:u,setup:e.setup||e.equipment||'',effort:e.effort});
   }
   const result=[];
   for(const a of by.values()){
    const first=a[0],last=a[a.length-1];if(a.length<2||days(first.date,last.date)<1)continue;
-   result.push({i:first.i,name:EX[first.i].name,first,last,sessions:a.length,load:pct(first.weight,last.weight),rep:pct(first.reps,last.reps),output:pct(first.weight*first.reps,last.weight*last.reps),setupUnknown:!first.setup});
+   result.push({i:first.i,name:first.name,custom:first.custom,first,last,sessions:a.length,load:pct(first.weight,last.weight),rep:pct(first.reps,last.reps),output:pct(first.weight*first.reps,last.weight*last.reps),setupUnknown:!first.setup});
   }
   // One comparison per exercise. Most observations, then longest time span; never cherry-pick the biggest gain.
   const each=new Map();for(const r of result){const prev=each.get(r.i);if(!prev||r.sessions>prev.sessions||(r.sessions===prev.sessions&&days(r.first.date,r.last.date)>days(prev.first.date,prev.last.date)))each.set(r.i,r)}
@@ -79,5 +92,5 @@
  function planOn(date){if(!validDate(date))return null;const offset=days('2026-10-05',date);if(offset<0||offset>=77)return null;const d=offset%7;return {week:Math.floor(offset/7)+1,day:d,kind:[1,4,6].includes(d)?'run':[2,5].includes(d)?'strength':'recovery',name:nameFor(d)};}
  function dayStatus(date,rows){const a=rows.filter(r=>r.date===date),plan=planOn(date);if(a.length)return {code:'done',label:a.length+' activity recorded',activities:a,plan};if(date>iso())return {code:'future',label:plan?.name||'No plan',plan};if(plan?.kind==='recovery')return {code:'rest',label:'Recovery day',plan};if(plan&&date<iso())return {code:'unlogged',label:'Planned workout — no completion logged',plan};return {code:'pending',label:plan?.name||'No scheduled workout',plan};}
  function due(s=state){const settings=s.bodyCheckSettings||{},checks=(s.bodyChecks||[]).filter(c=>validDate(c.date)&&c.date<=iso()&&n(c.kg)>0).sort((a,b)=>a.date.localeCompare(b.date));const last=checks.at(-1),interval=[7,14,28].includes(Number(settings.cadenceDays))?Number(settings.cadenceDays):7;const next=last?add(last.date,interval):iso();return {last,checks,next,enabled:settings.reminders!==false,isDue:settings.reminders!==false&&next<=iso()&&(!validDate(settings.snoozeUntil)||settings.snoozeUntil<=iso()),interval};}
- window.strydeProgressModel={TZ,n,iso,validDate,add,days,median,pct,unit,reps,logDate,records,period,liftChanges,runChange,analyze,planOn,dayStatus,due};
+ window.strydeProgressModel={customId,exerciseInfo,TZ,n,iso,validDate,add,days,median,pct,unit,reps,logDate,records,period,liftChanges,runChange,analyze,planOn,dayStatus,due};
 })();
