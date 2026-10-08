@@ -6,7 +6,7 @@
   const ROOT=document.getElementById('root');
   let rows=[],connected=false,busy=false,notice='',lastRead=0,authSeen=null,serial=0;
   const html=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const signedIn=()=>Boolean(ROOT?.querySelector('.stryde-account-button.is-signed-in'));
+  const signedIn=()=>window.strydeAccountStatus?window.strydeAccountStatus().signedIn:Boolean(ROOT?.querySelector('.stryde-account-button.is-signed-in'));
   const number=v=>v===null||v===undefined||v===''?null:Number.isFinite(Number(v))?Number(v):null;
   const duration=v=>{const n=number(v);if(n===null||n<0)return '—';const s=Math.round(n);return s>=3600?Math.floor(s/3600)+':'+String(Math.floor(s/60)%60).padStart(2,'0')+':'+String(s%60).padStart(2,'0'):Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
   const distance=v=>number(v)===null?'—':(Number(v)/1000).toFixed(2);
@@ -41,7 +41,7 @@
       lastRead=Date.now();
       notice=sync?'Sync complete. '+(Number.isFinite(imported)?imported+' run'+(imported===1?'':'s')+' processed.':'Your saved runs are up to date.'):'Strava connected · '+rows.length+' saved run'+(rows.length===1?'':'s')+' loaded.';
     }catch(error){if(thisRead===serial)notice=error?.message||'Unable to load runs. Please retry.';}
-    finally{if(thisRead===serial){busy=false;paint();}}
+    finally{if(thisRead===serial){busy=false;paint();window.dispatchEvent(new Event('stryde-runs-changed'));}}
   }
   async function connect(){
     if(!signedIn()){window.strydeOpenAccount?.();return;}
@@ -50,7 +50,7 @@
     catch(error){notice=error?.message||'Could not open Strava.';busy=false;paint();}
   }
   function refreshAccount(){
-    const value=signedIn();
+    const value=window.strydeAccountStatus?.().userId||null;
     if(value!==authSeen){authSeen=value;serial++;busy=false;rows=[];connected=false;notice='';lastRead=0;paint();}
     if(value&&pages()&&!busy&&!lastRead)void load();
   }
@@ -78,6 +78,8 @@
   if(ROOT)new MutationObserver(()=>{if(pages())refreshAccount();else if(authSeen&&!signedIn()){serial++;rows=[];connected=false;lastRead=0;busy=false;authSeen=false;}}).observe(ROOT,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
   const previousRender=window.render;
   window.render=function(...args){const result=previousRender.apply(this,args);mount();return result;};
+  window.strydeStravaSnapshot=()=>({rows:signedIn()?rows.map(a=>({...a})):[],connected:signedIn()&&connected,loaded:Boolean(lastRead)&&!busy,busy,userId:window.strydeAccountStatus?.().userId||null,limited:rows.length>=50});
+  window.strydeMountRuns=mount;
   window.strydeConnectStrava=connect;
   window.strydeSyncStrava=()=>load(true);
   window.strydeLoadStrava=()=>load(false);
