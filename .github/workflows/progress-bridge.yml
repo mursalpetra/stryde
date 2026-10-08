@@ -1,0 +1,28 @@
+name: Install STRYDE progress bridge
+on:
+  push:
+    branches: [main]
+    paths: ['tools/install-progress-bridge.mjs', '.github/workflows/progress-bridge.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stryde-progress-bridge
+  cancel-in-progress: false
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: node tools/install-progress-bridge.mjs
+      - run: node --check account-cloud.js && node --check strava-runs.js
+      - name: Commit only integration changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add account-cloud.js strava-runs.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Install private photo and progress data integrations'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
