@@ -9,7 +9,7 @@ const EX=[
 ['Seated Row',2,12,0,'machine display','Back,Biceps','Keep your chest steady and pull elbows back.','CBSeatedRow','1552252'],
 ['Shoulder Press',2,10,10,'machine display','Shoulders,Triceps','Handles near shoulder height; avoid shrugging.','LVShoulderPress','136405'],
 ['Chest Press',2,10,0,'machine display','Chest,Triceps','Handles near mid-chest, press smoothly.','LVChestPress','1552249']
-].map((v,i)=>({name:v[0],sets:v[1],reps:v[2],trial:v[3],unit:v[4],muscles:v[5].split(','),cue:v[6],url:'https://exrx.net/WeightExercises/'+(['Hamstrings','GluteusMaximus','Quadriceps','Hamstrings','LatissimusDorsi','BackGeneral','DeltoidAnterior','PectoralSternal'][i])+'/'+v[7],image:'https://images.pexels.com/photos/'+v[8]+'/pexels-photo-'+v[8]+'.jpeg?auto=compress&cs=tinysrgb&w=350'}));
+].map((v,i)=>({name:v[0],sets:v[1],reps:v[2],trial:v[3],unit:v[4],muscles:v[5].split(','),cue:v[6],url:'https://exrx.net/WeightExercises/'+(['Hamstrings','GluteusMaximus','Quadriceps','Hamstrings','LatissimusDorsi','BackGeneral','DeltoidAnterior','PectoralSternal'][i])+'/'+v[7],image:null,photoStatus:'unverified'}));
 let state=JSON.parse(localStorage.getItem('stryde-v1')||'null')||{week:1,logs:{},profile:{weight:57.8,height:159}};
 function normalize(){state.logs=state.logs||{};state.profile=state.profile||{};state.approvedLoads=state.approvedLoads||{};state.milestones=state.milestones||[{id:'shenzhen-half-2026',title:'Shenzhen Half Marathon',date:RACE,status:'active',kind:'race'}];}
 normalize();
