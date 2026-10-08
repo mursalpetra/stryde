@@ -12,7 +12,7 @@
   const distance=v=>number(v)===null?'—':(Number(v)/1000).toFixed(2);
   const pace=a=>number(a.distance_m)>0&&number(a.moving_time_seconds)>0?duration(Number(a.moving_time_seconds)/(Number(a.distance_m)/1000)):'—';
   const localDate=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Date unavailable';
-  const pages=()=>view==='progress'||view==='strava'||(view==='session'&&[1,4,6].includes(sessionDay));
+  const pages=()=>view==='progress'||view==='strava';
   function cardMarkup(){
     const authorized=signedIn();
     const button=authorized?(connected?'<button class="btn orange" data-run-action="sync" '+(busy?'disabled':'')+'>Sync from Strava</button>':'<button class="btn orange" data-run-action="connect" '+(busy?'disabled':'')+'>Connect Strava</button>'):'<button class="btn orange" data-run-action="login">Log in to see runs</button>';
