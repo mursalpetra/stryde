@@ -1,0 +1,42 @@
+name: Generate STRYDE app icons
+on:
+  push:
+    branches: [main]
+    paths: ['assets/stryde-wordmark.svg', '.github/workflows/brand-icons.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stryde-brand-icons
+  cancel-in-progress: false
+jobs:
+  icons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install SVG renderer
+        run: python -m pip install 'cairosvg==2.7.1'
+      - name: Render opaque PNG icons
+        run: |
+          python - <<'PY'
+          import cairosvg
+          from pathlib import Path
+          svg = Path('assets/stryde-wordmark.svg').read_bytes()
+          for size, path in [(180,'apple-touch-icon.png'),(192,'assets/icon-192.png'),(512,'assets/icon-512.png')]:
+              cairosvg.svg2png(bytestring=svg,write_to=path,output_width=size,output_height=size)
+          # Maskable icon preserves the wordmark inside the central safe area.
+          text=svg.decode()
+          start=text.index('<path fill="white"')
+          text=text[:start]+'<g transform="translate(72 0) scale(.72 1)">'+text[start:].replace('</svg>','</g></svg>')
+          cairosvg.svg2png(bytestring=text.encode(),write_to='assets/icon-maskable-512.png',output_width=512,output_height=512)
+          PY
+      - name: Commit only generated icon files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apple-touch-icon.png assets/icon-192.png assets/icon-512.png assets/icon-maskable-512.png
+          if ! git diff --cached --quiet; then
+            git commit -m 'Generate STRYDE PNG icons for home-screen installation'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
