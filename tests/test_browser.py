@@ -348,10 +348,12 @@ class BrowserRegressions(unittest.TestCase):
         self.assertEqual(self.page.evaluate("__mock.upserts"), [])
 
 
-    def screenshot(self, filename):
+    def screenshot(self, filename, scroll_top=True):
         folder = ROOT / "tests" / "screenshots"
         folder.mkdir(parents=True, exist_ok=True)
-        self.page.screenshot(path=str(folder / filename), full_page=True, animations="disabled")
+        if scroll_top:
+            self.page.evaluate("window.scrollTo(0,0)")
+        self.page.screenshot(path=str(folder / filename), full_page=False, animations="disabled")
 
     def assert_no_horizontal_overflow(self, label):
         geometry = self.page.evaluate("""() => ({
@@ -382,6 +384,13 @@ class BrowserRegressions(unittest.TestCase):
                     if width == 390:
                         self.screenshot(f"{filename}-mobile.png")
                     self.assert_no_horizontal_overflow(f"{tab} at {width}px")
+                    tabs = self.page.locator(".coach-tabs button")
+                    self.assertEqual(tabs.count(), 5)
+                    for index in range(5):
+                        box = tabs.nth(index).bounding_box()
+                        self.assertGreaterEqual(box["x"], 0)
+                        self.assertLessEqual(box["x"] + box["width"], width)
+                        self.assertGreaterEqual(box["height"], 44)
 
     def test_private_intake_and_meal_plan_save_reload_without_logging_planned_food(self):
         before = self.boot()
@@ -475,7 +484,8 @@ class BrowserRegressions(unittest.TestCase):
         self.assertEqual(self.state()["coaching"]["blocks"][0]["status"], "proposed")
         self.page.locator('[data-coach="block-confirm"]').click()
         self.settle("state.coaching.blocks[0].status==='accepted'")
-        self.screenshot("training-accepted-mobile.png")
+        self.page.locator(".coach-card").last.scroll_into_view_if_needed()
+        self.screenshot("training-accepted-mobile.png", scroll_top=False)
         self.page.evaluate("state.week=2;openSession(2)")
         self.page.locator('[data-time-action="start"]').click()
         self.settle("state.logs['2-2']?.timing?.state==='running'")
