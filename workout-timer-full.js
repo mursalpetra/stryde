@@ -26,6 +26,8 @@
     if(existing&&existing!==k){alert('Finish the open workout before starting another timer.');return;}
     const l=record(k)||{};if(l.status==='done'||timer(k))return;
     const at=nowMs();
+    const prescription=window.strydeCoaching?.snapshotFor(k);
+    if(prescription)l.prescriptionSnapshot=prescription;
     l.timing={version:2,state:'running',source:'timer',duration_kind:'elapsed',started_at:stamp(at),ended_at:null,running_since:stamp(at),accumulated_ms:0,time_zone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'};
     l.status='in_progress';state.logs[k]=l;persist();mount();
   }
@@ -85,3 +87,4 @@
   window.strydeWorkoutTimer={start,complete,editTimes,mount,elapsedMs};
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});window.addEventListener('pageshow',tick);setInterval(()=>{if(!document.hidden)tick();},1000);mount();
 })();
+
