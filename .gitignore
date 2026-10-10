@@ -1,0 +1,6 @@
+# Local verification artifacts, never user data or production fixtures.
+preview.html
+preview-mobile.html
+tests/__pycache__/
+tests/screenshots/
+*.pyc
