@@ -27,6 +27,19 @@ One case documents the existing account-switch/delayed-read limitation: no data 
 python tests/test_browser.py -v
 ```
 
-Requires Python Playwright and Chromium at `/usr/bin/chromium`, or set `CHROMIUM_PATH`. Starts a temporary loopback HTTP server, uses fresh browser contexts, fixes the date/time zone, fulfills the Supabase CDN with the local mock, fulfills Strava reads with empty synthetic results, and blocks all other remote requests. It uses a phone-sized viewport.
+Requires Python Playwright and Chromium at `/usr/bin/chromium`, or set `CHROMIUM_PATH`. Starts a temporary loopback HTTP server, uses fresh browser contexts, fixes the date/time zone, fulfills the Supabase CDN with the local mock, fulfills Strava reads with empty synthetic results, and blocks all other remote requests. It uses phone-sized viewports, including 320px and 390px widths for every Coach tab.
 
-Covers save/reload, conflicts, account switching, offline recovery, photo API calls, custom-exercise creation/reuse without changing a recovery day's plan, real food-entry forms, and unsaved coaching-form dismissal on account switch. Browser execution needs a runtime that allows Chromium's local IPC sockets. A browser-launch failure is an environment blocker, not a passing UI test; the Node checks are not a substitute for DOM/layout verification.
+The 15 scenarios cover:
+
+- Legacy/coaching save/reload, sync conflict choices, account switching, offline retry, and private photo API boundaries
+- Custom exercise creation/reuse while preserving the recovery-day plan
+- All five Coach tabs at both narrow widths, with page-overflow assertions
+- Private intake and manual meal-plan persistence without logging planned food as eaten
+- Food creation/edit/removal/restoration/cancel, unknown values, and complete-day reopening
+- Training proposal → explicit acceptance → timer-start snapshot → later accepted revision → frozen saved sets
+- Recovery date switching that loads the saved day and leaves workout logs intact
+- Account switching dismissing unsaved forms; same-account cloud replacement blocking a stale modal save
+
+The mobile checks write synthetic-only screenshots to `tests/screenshots/`, including `coach-review-mobile.png`, `food-log-mobile.png`, `training-mobile.png`, width-specific versions, and relevant saved/error states. The PR-only QA workflow uploads these as a review artifact; this does not publish or deploy the app. Screenshots are generated during test execution rather than checked in.
+
+Browser execution needs a runtime that allows Chromium's local IPC sockets. A browser-launch failure is an environment blocker, not a passing UI test; the Node checks are not a substitute for DOM/layout verification.

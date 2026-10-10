@@ -348,5 +348,218 @@ class BrowserRegressions(unittest.TestCase):
         self.assertEqual(self.page.evaluate("__mock.upserts"), [])
 
 
+    def screenshot(self, filename):
+        folder = ROOT / "tests" / "screenshots"
+        folder.mkdir(parents=True, exist_ok=True)
+        self.page.screenshot(path=str(folder / filename), full_page=True, animations="disabled")
+
+    def assert_no_horizontal_overflow(self, label):
+        geometry = self.page.evaluate("""() => ({
+          viewport: innerWidth, document: document.documentElement.scrollWidth,
+          offenders: [...document.querySelectorAll('body *')].filter(e => {
+            const r=e.getBoundingClientRect(); return r.width>0 && (r.right>innerWidth+1 || r.left< -1);
+          }).slice(0,10).map(e=>({tag:e.tagName,class:e.className,text:e.textContent.slice(0,60)}))
+        })""")
+        self.assertLessEqual(geometry["document"], geometry["viewport"] + 1, f"{label}: {geometry}")
+
+    def test_coach_tabs_fit_small_mobile_widths_and_capture_synthetic_screenshots(self):
+        seed = fixture("Synthetic mobile fixture")
+        seed["coaching"] = coaching("Synthetic")
+        seed["coaching"]["days"]["2026-10-09"] = {"complete": True}
+        seed["coaching"]["profile"] = {"priority": "Synthetic strength and running routine", "foodPreferences": "Synthetic flexible meal preferences"}
+        self.boot(seed)
+        names = {"overview": "coach-review", "food": "food-log", "meals": "meal-plan", "training": "training", "profile": "intake"}
+        for width in (320, 390):
+            self.page.set_viewport_size({"width": width, "height": 844})
+            for tab, filename in names.items():
+                with self.subTest(width=width, tab=tab):
+                    self.page.evaluate("tab=>strydeCoaching.setTab(tab)", tab)
+                    if tab == "food":
+                        self.page.locator("#coach-food-date").fill("2026-10-09")
+                        self.page.locator("#coach-food-date").dispatch_event("change")
+                    self.page.locator(".coach-content").wait_for(state="visible")
+                    self.screenshot(f"{filename}-mobile-{width}.png")
+                    if width == 390:
+                        self.screenshot(f"{filename}-mobile.png")
+                    self.assert_no_horizontal_overflow(f"{tab} at {width}px")
+
+    def test_private_intake_and_meal_plan_save_reload_without_logging_planned_food(self):
+        before = self.boot()
+        self.page.evaluate("strydeCoaching.setTab('profile')")
+        form = self.page.locator("#coach-profile")
+        form.locator('[name="goals"][value="General fitness"]').check()
+        form.locator('[name="priority"]').fill("Synthetic consistent training goal")
+        form.locator('[name="daysPerWeek"]').fill("3")
+        form.locator('[name="minutes"]').fill("40")
+        form.locator('[name="equipment"]').fill("Synthetic dumbbells and training station")
+        form.locator('[name="foodPreferences"]').fill("Synthetic simple meal preference")
+        form.get_by_role("button", name="Save private intake", exact=True).click()
+        self.settle("state.coaching?.profile.priority==='Synthetic consistent training goal'")
+        profile = self.state()["coaching"]["profile"]
+        self.assertEqual(profile["goals"], ["General fitness"])
+        self.assertEqual(profile["daysPerWeek"], 3)
+        self.assertIsNone(profile["age"])
+        self.assertIsNone(profile["height"])
+        self.page.evaluate("strydeCoaching.setTab('meals')")
+        self.page.locator("#coach-plan-date").fill("2026-10-11")
+        self.page.locator("#coach-plan-date").dispatch_event("change")
+        plan_form = self.page.locator("#coach-meal-plan")
+        plan_values = {"breakfast": "Synthetic breakfast plan", "lunch": "Synthetic lunch plan", "dinner": "Synthetic dinner plan", "snack": "Synthetic snack plan", "notes": "Synthetic preparation note"}
+        for name, value in plan_values.items():
+            plan_form.locator(f'[name="{name}"]').fill(value)
+        plan_form.get_by_role("button", name="Save meal plan", exact=True).click()
+        self.settle("state.coaching.mealPlans['2026-10-11']?.breakfast==='Synthetic breakfast plan'")
+        self.assertEqual(self.state()["coaching"]["meals"], [])
+        self.page.reload(wait_until="networkidle")
+        self.assertEqual(self.state()["coaching"]["profile"], profile)
+        self.page.evaluate("strydeCoaching.setTab('profile')")
+        self.assertEqual(self.page.locator('#coach-profile [name="priority"]').input_value(), profile["priority"])
+        self.page.evaluate("strydeCoaching.setTab('meals')")
+        self.page.locator("#coach-plan-date").fill("2026-10-11")
+        self.page.locator("#coach-plan-date").dispatch_event("change")
+        for name, value in plan_values.items():
+            self.assertEqual(self.page.locator(f'#coach-meal-plan [name="{name}"]').input_value(), value)
+        for key, value in before.items():
+            self.assertEqual(self.state()[key], value, key)
+
+    def test_food_edit_remove_restore_reopens_complete_days_and_cancel_is_safe(self):
+        seed = fixture(); seed["coaching"] = coaching("Synthetic")
+        seed["coaching"]["meals"][0]["date"] = "2026-10-10"
+        seed["coaching"]["days"]["2026-10-10"] = {"complete": True}
+        self.boot(seed)
+        self.page.evaluate("strydeCoaching.setTab('food')")
+        self.assertTrue(self.page.locator("#coach-day-complete").is_checked())
+        self.page.locator('[data-coach="meal-edit"]').click()
+        form = self.page.locator("#coach-meal-form")
+        form.locator('[name="protein"]').fill("30")
+        form.locator('[name="portion"]').fill("One updated synthetic serving")
+        form.get_by_role("button", name="Save entry", exact=True).click()
+        self.settle("state.coaching.meals[0].protein===30")
+        self.assertFalse(self.state()["coaching"]["days"]["2026-10-10"]["complete"])
+        self.page.locator("#coach-day-complete").check()
+        self.page.locator('[data-coach="meal-remove"]').click()
+        self.settle("state.coaching.meals[0].deleted===true")
+        self.assertFalse(self.state()["coaching"]["days"]["2026-10-10"]["complete"])
+        self.assertTrue(self.page.locator("#coach-day-complete").is_disabled())
+        self.page.get_by_text("Removed entries", exact=True).click()
+        self.page.locator('[data-coach="meal-restore"]').click()
+        self.settle("state.coaching.meals[0].deleted===false")
+        self.assertFalse(self.page.locator("#coach-day-complete").is_checked())
+        self.assertEqual(len(self.state()["coaching"]["meals"]), 1)
+        before_cancel = self.state()["coaching"]
+        self.page.locator('[data-coach="meal-edit"]').click()
+        self.page.locator('#coach-meal-form [name="description"]').fill("Unsaved synthetic change")
+        self.page.get_by_role("button", name="Cancel", exact=True).click()
+        self.assertEqual(self.state()["coaching"], before_cancel)
+        self.screenshot("food-log-edited-restored-mobile.png")
+        self.page.reload(wait_until="networkidle")
+        self.assertEqual(self.state()["coaching"], before_cancel)
+
+    def test_training_proposal_acceptance_and_timer_snapshot_ui_flow(self):
+        before = self.boot()
+        self.page.evaluate("strydeCoaching.setTab('training')")
+        self.page.locator('[data-coach="block-add"]').click()
+        form = self.page.locator("#coach-block-form")
+        form.locator('[name="title"]').fill("Synthetic training block")
+        form.locator('[name="start"]').fill("2026-10-10")
+        form.locator('[name="end"]').fill("2026-10-31")
+        form.locator('[name="rationale"]').fill("Synthetic review of repeatable sets and recovery")
+        form.locator('[name="include-0"]').check()
+        form.locator('[name="reps-0"]').fill("12")
+        form.locator('[name="weight-0"]').fill("10")
+        form.get_by_role("button", name="Save proposal for review", exact=True).click()
+        self.settle("state.coaching?.blocks.length===1")
+        self.assertEqual(self.state()["coaching"]["blocks"][0]["status"], "proposed")
+        self.assertEqual(self.state()["logs"], before["logs"])
+        self.page.locator('[data-coach="block-accept"]').click()
+        self.assertEqual(self.state()["coaching"]["blocks"][0]["status"], "proposed")
+        self.page.locator('[data-coach="block-confirm"]').click()
+        self.settle("state.coaching.blocks[0].status==='accepted'")
+        self.screenshot("training-accepted-mobile.png")
+        self.page.evaluate("state.week=2;openSession(2)")
+        self.page.locator('[data-time-action="start"]').click()
+        self.settle("state.logs['2-2']?.timing?.state==='running'")
+        snapshot = self.state()["logs"]["2-2"]["prescriptionSnapshot"]
+        self.assertEqual(snapshot["exercises"]["0"]["weight"], 10)
+        self.assertEqual(snapshot["exercises"]["0"]["blockVersion"], 1)
+        self.assertEqual(len(snapshot["exercises"]), 4)
+        self.page.evaluate("strydeCoaching.setTab('training')")
+        self.page.locator('[data-coach="block-revise"]').click()
+        form = self.page.locator("#coach-block-form")
+        form.locator('[name="title"]').fill("Synthetic revised block")
+        form.locator('[name="reps-0"]').fill("8")
+        form.locator('[name="weight-0"]').fill("15")
+        form.get_by_role("button", name="Save proposal for review", exact=True).click()
+        self.settle("state.coaching.blocks.length===2")
+        self.page.locator('[data-coach="block-accept"]').click()
+        self.page.locator('[data-coach="block-confirm"]').click()
+        self.settle("state.coaching.blocks[1].status==='accepted'")
+        self.page.evaluate("openSession(2)")
+        self.page.locator('.excard[onclick="openExercise(0)"]').click()
+        self.assertEqual(self.page.locator("#lift-weight").input_value(), "10")
+        self.assertEqual(self.page.locator("#rep0").get_attribute("placeholder"), "12")
+        self.page.locator("#lift-weight").fill("10")
+        for index in range(3):
+            self.page.locator(f"#rep{index}").fill("12")
+        self.page.locator("#lift-effort").select_option("moderate")
+        self.page.locator("#lift-form").select_option("good")
+        self.page.get_by_role("button", name="Save sets & next exercise →", exact=True).click()
+        self.assertEqual(self.state()["logs"]["2-2"]["prescriptionSnapshot"], snapshot)
+        self.page.evaluate("go('progress')")
+        self.assertIsNone(self.page.evaluate("target(0).blockId || null"))
+        self.page.reload(wait_until="networkidle")
+        self.assertEqual(self.state()["logs"]["2-2"]["prescriptionSnapshot"], snapshot)
+        for key, value in before["logs"].items():
+            self.assertEqual(self.state()["logs"][key], value, key)
+
+    def test_recovery_date_change_loads_saved_values_and_keeps_workout_logs_separate(self):
+        seed = fixture(); seed["coaching"] = coaching("Synthetic")
+        seed["coaching"]["recovery"] = {
+            "2026-10-08": {"sleep": 7.5, "energy": 3, "comfort": "comfortable", "rest": True, "note": "Synthetic earlier recovery"},
+            "2026-10-10": {"sleep": 8, "energy": 4, "comfort": "unknown", "rest": False, "note": "Synthetic current check-in"},
+        }
+        before = self.boot(seed)
+        self.page.evaluate("strydeCoaching.setTab('overview')")
+        self.page.locator('[data-coach="recovery"]').click()
+        form = self.page.locator("#coach-recovery-form")
+        self.assertEqual(form.locator('[name="sleep"]').input_value(), "8")
+        form.locator('[name="date"]').fill("2026-10-08")
+        self.page.locator('#coach-recovery-form [name="date"]').dispatch_event("change")
+        form = self.page.locator("#coach-recovery-form")
+        self.assertEqual(form.locator('[name="sleep"]').input_value(), "7.5")
+        self.assertEqual(form.locator('[name="energy"]').input_value(), "3")
+        self.assertEqual(form.locator('[name="note"]').input_value(), "Synthetic earlier recovery")
+        self.assertTrue(form.locator('[name="rest"]').is_checked())
+        form.locator('[name="note"]').fill("Synthetic revised recovery note")
+        form.get_by_role("button", name="Save recovery check-in", exact=True).click()
+        self.settle("state.coaching.recovery['2026-10-08'].note==='Synthetic revised recovery note'")
+        self.assertEqual(self.state()["coaching"]["recovery"]["2026-10-10"], before["coaching"]["recovery"]["2026-10-10"])
+        self.assertEqual(self.state()["logs"], before["logs"])
+        self.assertNotIn("1-3", self.state()["logs"])
+        self.page.reload(wait_until="networkidle")
+        self.assertEqual(self.state()["coaching"]["recovery"]["2026-10-08"]["sleep"], 7.5)
+
+    def test_cloud_payload_replacement_blocks_a_stale_open_coaching_form(self):
+        seed = fixture(); seed["coaching"] = coaching("Initial")
+        self.boot(seed, UID_A, {UID_A: seed}, UID_A)
+        self.settle("strydeAccountStatus().ready")
+        self.page.evaluate("strydeCoaching.setTab('food')")
+        self.page.locator('[data-coach="meal-add"]').click()
+        form = self.page.locator("#coach-meal-form")
+        form.locator('[name="description"]').fill("Stale synthetic draft")
+        form.locator('[name="portion"]').fill("One synthetic serving")
+        form.locator('[name="protein"]').fill("20")
+        remote = copy.deepcopy(seed); remote["coaching"] = coaching("New cloud payload")
+        self.page.evaluate("remote=>{__mock.cloud[__mock.user.id]=remote;strydeOpenAccount()}", remote)
+        self.page.locator("#stryde-sync-now").click()
+        self.settle("state.coaching.testLabel==='New cloud payload' && strydeAccountStatus().ready")
+        self.page.locator('#stryde-account-dialog [data-close-account]').first.click()
+        self.page.locator('#coach-meal-form').get_by_role("button", name="Save entry", exact=True).click()
+        self.assertIn("changed while this form was open", self.page.locator("[data-coach-error]").inner_text())
+        self.assertEqual(self.state()["coaching"], remote["coaching"])
+        self.assertEqual(self.page.evaluate("__mock.upserts"), [])
+        self.screenshot("stale-form-blocked-mobile.png")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -37,18 +37,18 @@ python tests/test_browser.py -v
 
 The Node tests use a VM and deterministic, fully synthetic Supabase/auth/photo mocks. They test the real application modules but do not provide a browser DOM or layout engine.
 
-The Playwright suite uses Python Playwright and `/usr/bin/chromium` (`CHROMIUM_PATH` can override it). It starts a loopback HTTP server, blocks external traffic, substitutes a synthetic SDK and uses fresh synthetic accounts. No live cloud reads/writes are performed.
+The Playwright suite uses Python Playwright and `/usr/bin/chromium` (`CHROMIUM_PATH` can override it). CI installs the official pinned Playwright package/browser and selects that executable. It starts a loopback HTTP server, blocks external traffic, substitutes a synthetic SDK and uses fresh synthetic accounts. No live cloud reads/writes are performed.
 
 ### Draft verification results
 
 - All JavaScript syntax checks: passed.
 - Node tests: passed (model, prescription and account regressions).
 - Python browser test syntax: passed.
-- Browser interactions and mobile visual/screenshot checks: **not run successfully in this workspace**. Local Chromium launch is blocked by the execution environment, and the available cloud browser cannot access the local preview server. No public preview was deployed.
+- Browser interactions and mobile checks run in the PR-only `Coaching draft browser QA` workflow using a standard GitHub-hosted runner and fully synthetic data. Check the latest commit’s CI result and screenshot artifact. Local Chromium launch remains blocked by IPC permissions in this workspace; no security setting was changed and no public preview was deployed.
 - Live account, Strava and photo end-to-end tests: not run. These services and security policies were not changed.
 
 Known pre-existing account behavior: changing accounts during an outstanding cloud read can leave the new account waiting after the old read resolves. Account → Sync now recovers the normal copy-review flow. A deterministic test documents this race without changing auth code.
 
 ## Before publication
 
-This is draft-only. Review the changes and run the browser suite and a small-screen visual pass, including interrupted forms, food edits/restores, account-copy selection, existing workouts and custom exercises. Verify the final commit's checks. Merging to `main` triggers the existing GitHub Pages deployment and needs separate publication approval. Do not enable auto-merge or deploy this draft automatically.
+This is draft-only. Review the changes, the latest browser-suite check and the small-screen screenshots, including interrupted forms, food edits/restores, account-copy selection, existing workouts and custom exercises. Verify the final commit's checks. Merging to `main` triggers the existing GitHub Pages deployment and needs separate publication approval. Do not enable auto-merge or deploy this draft automatically.
