@@ -1,0 +1,50 @@
+name: Coaching draft browser QA
+
+on:
+  pull_request:
+    paths:
+      - '*.js'
+      - '*.css'
+      - 'index.html'
+      - 'tests/**'
+      - '.github/workflows/coaching-browser-qa.yml'
+
+# Synthetic tests only. No repository writes, secrets, environment, or deployment.
+permissions:
+  contents: read
+
+concurrency:
+  group: coaching-qa-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-browser-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the PR for isolated tests
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Check syntax and deterministic models
+        run: |
+          for f in *.js; do node --check "$f"; done
+          node --test tests/test_account_model.mjs
+          python3 -m py_compile tests/test_browser.py
+          git diff --check
+      - name: Install pinned official browser testing dependencies
+        run: |
+          python3 -m venv /tmp/stryde-qa
+          /tmp/stryde-qa/bin/python -m pip install 'playwright==1.62.0'
+          /tmp/stryde-qa/bin/python -m playwright install --with-deps chromium
+          echo "CHROMIUM_PATH=$(/tmp/stryde-qa/bin/python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')" >> "$GITHUB_ENV"
+      - name: Run synthetic browser and mobile regressions
+        run: /tmp/stryde-qa/bin/python tests/test_browser.py -v
+      - name: Save synthetic-only review screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coaching-synthetic-mobile-screenshots
+          path: tests/screenshots/*.png
+          if-no-files-found: ignore
+          retention-days: 7
