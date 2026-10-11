@@ -47,7 +47,7 @@
   if(tab==='overview'){window.strydeMountRuns?.();window.strydeWorkoutTimer?.mount();const host=ROOT.querySelector('.hub-content');for(const panel of ROOT.querySelectorAll('#stryde-runs-panel,.workout-timing-history'))host?.append(panel);}if(tab==='photos')window.strydeMilestonePhotos?.mount?.();
  }
  // Definitions created in this dialog remain a draft until the workout is saved.
- const customUnits=['lbs','kg','lbs per hand','kg per hand'];
+ const customUnits=['kg','kg per hand','lbs','lbs per hand'];
  const cleanName=v=>String(v||'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,'').trim().replace(/\s+/g,' ');
  const nameKey=v=>cleanName(v).toLocaleLowerCase('en');
  function savedCustom(){

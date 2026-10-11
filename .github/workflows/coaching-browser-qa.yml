@@ -29,7 +29,7 @@ jobs:
       - name: Check syntax and deterministic models
         run: |
           for f in *.js; do node --check "$f"; done
-          node --test tests/test_account_model.mjs
+          node --test tests/test_*.mjs
           python3 -m py_compile tests/test_browser.py
           git diff --check
       - name: Install pinned official browser testing dependencies

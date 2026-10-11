@@ -43,3 +43,9 @@ The 15 scenarios cover:
 The mobile checks write synthetic-only screenshots to `tests/screenshots/`, including `coach-review-mobile.png`, `food-log-mobile.png`, `training-mobile.png`, width-specific versions, and relevant saved/error states. The PR-only QA workflow uploads these as a review artifact; this does not publish or deploy the app. Screenshots are generated during test execution rather than checked in.
 
 Browser execution needs a runtime that allows Chromium's local IPC sockets. A browser-launch failure is an environment blocker, not a passing UI test; the Node checks are not a substitute for DOM/layout verification.
+
+## Machine kilogram units
+
+Run `node --test tests/test_*.mjs` for all models. The unit tests cover selected-label corrections, numeric preservation, full per-record audits, idempotence and unchanged free-weight history. Browser scenarios additionally cover cancel/confirm/reload, explicit custom-machine selection, stale-account/data protection, and preventing an old machine entry from silently being resaved as kg.
+
+Me → Review weight units performs a label correction only after confirmation. It never converts pounds to kilograms mathematically. Custom total-load entries require selection; genuine pound/free-weight entries must remain unselected. The original records are retained in the private `weightUnitCorrections` audit exported with the account. No live account data is included in tests or source.
