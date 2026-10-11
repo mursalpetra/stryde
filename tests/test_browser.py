@@ -571,5 +571,81 @@ class BrowserRegressions(unittest.TestCase):
         self.screenshot("stale-form-blocked-mobile.png")
 
 
+    def test_machine_units_review_cancel_confirm_reload(self):
+        local = fixture()
+        local['logs']['1-2']['exercises']['2'] = {'weight': 17, 'reps': '8,8', 'unit': 'lbs', 'effort': 'moderate', 'form': 'good'}
+        local['customExercises'][CUSTOM_ID]['unit'] = 'lbs'
+        local['extraWorkouts'][0]['exercises'][CUSTOM_ID]['unit'] = 'lbs'
+        self.boot(local)
+        self.page.evaluate("go('me')")
+        self.page.get_by_role('button', name='Review weight units', exact=True).click()
+        self.assertFalse(self.page.locator(f'input[value="{CUSTOM_ID}"]').is_checked())
+        self.page.get_by_role('button', name='Cancel', exact=True).click()
+        self.assertEqual(self.state()['logs']['1-2']['exercises']['2']['unit'], 'lbs')
+        self.page.get_by_role('button', name='Review weight units', exact=True).click()
+        self.page.locator(f'input[value="{CUSTOM_ID}"]').check()
+        self.page.get_by_role('button', name='Confirm selected machines used kg', exact=True).click()
+        after = self.state()
+        self.assertEqual(after['logs']['1-2']['exercises']['2']['unit'], 'kg')
+        self.assertEqual(after['logs']['1-2']['exercises']['2']['weight'], 17)
+        self.assertEqual(after['logs']['1-2']['exercises']['0']['unit'], 'lbs per hand')
+        self.assertEqual(after['customExercises'][CUSTOM_ID]['unit'], 'kg')
+        self.assertEqual(len(after['weightUnitCorrections']), 1)
+        self.page.reload(wait_until='networkidle')
+        self.assertEqual(self.state(), after)
+        self.page.evaluate("go('me');strydeReviewWeightUnits()")
+        self.assertIn('No eligible machine labels', self.page.locator('#weight-unit-dialog').inner_text())
+        self.page.get_by_role('button', name='Cancel', exact=True).click()
+        self.screenshot('machine-kg-settings-mobile.png')
+
+    def test_unreviewed_machine_entry_cannot_be_silently_resaved_as_kg(self):
+        local = fixture()
+        local['logs']['1-2']['exercises']['2'] = {'weight': 17, 'reps': '8,8', 'unit': 'lbs'}
+        self.boot(local)
+        self.page.evaluate('openSession(2);openExercise(2)')
+        self.assertIn('Check this machine', self.page.locator('#root').inner_text())
+        self.assertEqual(self.page.locator('#lift-weight').count(), 0)
+        self.page.get_by_role('button', name='Review weight units', exact=True).click()
+        self.page.get_by_role('button', name='Confirm selected machines used kg', exact=True).click()
+        self.assertEqual(self.page.locator('#lift-weight').input_value(), '17')
+        self.assertIn('Weight (kg)', self.page.locator('#root').inner_text())
+
+    def test_revising_unreviewed_machine_block_does_not_prefill_kg_load(self):
+        local = fixture()
+        local['coaching'] = coaching()
+        local['coaching']['blocks'] = [{'id': 'synthetic-block', 'version': 1, 'title': 'Synthetic block', 'status': 'accepted', 'start': '2026-10-10', 'end': '2026-10-24', 'rationale': 'Synthetic test', 'prescriptions': {'4': {'weight': 17, 'reps': 10, 'sets': 2, 'unit': 'lbs'}}}]
+        self.boot(local)
+        self.page.evaluate("strydeCoaching.setTab('training')")
+        self.page.get_by_role('button', name='Create revised proposal', exact=True).click()
+        self.assertEqual(self.page.locator('[name="weight-4"]').input_value(), '')
+        self.assertEqual(self.state()['coaching']['blocks'][0]['prescriptions']['4']['unit'], 'lbs')
+        self.assertIn('unresolved units', self.page.locator('#coach-block-form').inner_text())
+
+    def test_machine_correction_audit_syncs_and_survives_reload(self):
+        local = fixture()
+        local['logs']['1-2']['exercises']['2'] = {'weight': 17, 'reps': '8,8', 'unit': 'lbs'}
+        self.boot(local, cloud={UID_A: copy.deepcopy(local)}, uid=UID_A, owner=UID_A)
+        self.settle('strydeAccountStatus().ready')
+        self.page.evaluate("go('me');strydeReviewWeightUnits()")
+        self.page.get_by_role('button', name='Confirm selected machines used kg', exact=True).click()
+        self.settle('__mock.upserts.length===1')
+        saved = self.state()
+        remote = self.page.evaluate('__mock.cloud["synthetic-account-a"]')
+        self.assertEqual(remote['weightUnitCorrections'], saved['weightUnitCorrections'])
+        self.assertEqual(remote['logs']['1-2']['exercises']['2']['weight'], 17)
+        self.page.reload(wait_until='networkidle')
+        self.assertEqual(self.state()['weightUnitCorrections'], saved['weightUnitCorrections'])
+
+    def test_machine_unit_review_rejects_stale_data_and_dismisses_on_account_change(self):
+        self.boot()
+        self.page.evaluate("state.logs['1-2'].exercises[2]={weight:17,unit:'lbs'};go('me');strydeReviewWeightUnits()")
+        self.page.evaluate("state.profile.syntheticChange=true")
+        self.page.get_by_role('button', name='Confirm selected machines used kg', exact=True).click()
+        self.assertIn('data changed', self.page.locator('#weight-unit-error').inner_text())
+        self.assertEqual(self.state()['logs']['1-2']['exercises']['2']['unit'], 'lbs')
+        self.page.evaluate("dispatchEvent(new CustomEvent('stryde-account-change'))")
+        self.assertEqual(self.page.locator('#weight-unit-dialog').count(), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

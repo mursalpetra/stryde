@@ -25,7 +25,7 @@ const nameFor=d=>['Recovery','Easy Run','Glutes & Legs','Recovery','Easy Run','B
 const fmt=d=>d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
 function history(i){return Object.entries(state.logs).filter(([k,v])=>v.status==='done'&&v.exercises?.[i]&&Number(v.exercises[i].weight)>0).map(([k,v])=>({week:Number(k.split('-')[0]),day:Number(k.split('-')[1]),...v.exercises[i]})).sort((a,b)=>b.week-a.week||b.day-a.day)}
 function lastLift(i){return history(i)[0]||null}
-function target(i){let e=EX[i],p=lastLift(i),approved=state.approvedLoads[i];if(approved&&(!p||Number(approved.weight)>Number(p.weight)))return {weight:approved.weight,reps:Math.max(8,e.reps-2),why:'You approved a heavier trial. Warm up first; return to your previous weight if technique changes.',label:'Approved trial'};
+function target(i){let e=EX[i],p=lastLift(i),approved=state.approvedLoads[i];if(approved&&(!window.strydeMachineIds?.includes(String(i))||approved.unit==='kg')&&(!p||Number(approved.weight)>Number(p.weight)))return {weight:approved.weight,reps:Math.max(8,e.reps-2),why:'You approved a heavier trial. Warm up first; return to your previous weight if technique changes.',label:'Approved trial'};
 if(!p)return {weight:e.trial||'',reps:e.reps,why:'No confirmed recent working weight. Calibrate a load with 2–3 reps left in reserve.',label:'Calibrate'};
 
 let reps=String(p.reps||'').split(',').map(Number),full=reps.length>=e.sets&&reps.slice(0,e.sets).every(n=>n>0),min=full?Math.min(...reps.slice(0,e.sets)):0;
