@@ -89,7 +89,13 @@
   const changes=liftChanges(rows,p),loadWinner=changes.filter(r=>r.load>0&&r.last.reps>=r.first.reps).sort((a,b)=>b.load-a.load)[0]||null;
   return {rows:inRange,runs,lifts,runCount:runs.length,liftCount:lifts.length,km:runs.reduce((s,r)=>s+(r.distance||0),0),minutes:inRange.reduce((s,r)=>s+(r.minutes||0),0),changes,loadWinner,performance:changes.length>=2?median(changes.map(r=>r.output)):null,runTrend:runChange(runs),duplicates:duplicates(inRange)};
  }
- function planOn(date){if(!validDate(date))return null;const offset=days('2026-10-05',date);if(offset<0||offset>=77)return null;const d=offset%7;return {week:Math.floor(offset/7)+1,day:d,kind:[1,4,6].includes(d)?'run':[2,5].includes(d)?'strength':'recovery',name:nameFor(d)};}
+ function planOn(date){
+  if(!validDate(date))return null;const offset=days('2026-10-05',date);if(offset<0||offset>=77)return null;const d=offset%7;
+  const original={week:Math.floor(offset/7)+1,day:d,kind:[1,4,6].includes(d)?'run':[2,5].includes(d)?'strength':'recovery',name:nameFor(d)};
+  // Past calendar entries stay historical. Future labels use the same derived plan as Today.
+  const adaptive=date>=iso()?window.strydeScheduleModel?.build(state,records(state,window.strydeStravaSnapshot?.().rows||[]),iso()).days[date]:null;
+  return adaptive&&!['started','completed'].includes(adaptive.type)?{...original,...adaptive}:original;
+ }
  function dayStatus(date,rows){const a=rows.filter(r=>r.date===date),plan=planOn(date);if(a.length)return {code:'done',label:a.length+' activity recorded',activities:a,plan};if(date>iso())return {code:'future',label:plan?.name||'No plan',plan};if(plan?.kind==='recovery')return {code:'rest',label:'Recovery day',plan};if(plan&&date<iso())return {code:'unlogged',label:'Planned workout — no completion logged',plan};return {code:'pending',label:plan?.name||'No scheduled workout',plan};}
  function due(s=state){const settings=s.bodyCheckSettings||{},checks=(s.bodyChecks||[]).filter(c=>validDate(c.date)&&c.date<=iso()&&n(c.kg)>0).sort((a,b)=>a.date.localeCompare(b.date));const last=checks.at(-1),interval=[7,14,28].includes(Number(settings.cadenceDays))?Number(settings.cadenceDays):7;const next=last?add(last.date,interval):iso();return {last,checks,next,enabled:settings.reminders!==false,isDue:settings.reminders!==false&&next<=iso()&&(!validDate(settings.snoozeUntil)||settings.snoozeUntil<=iso()),interval};}
  window.strydeProgressModel={customId,exerciseInfo,TZ,n,iso,validDate,add,days,median,pct,unit,reps,logDate,records,period,liftChanges,runChange,analyze,planOn,dayStatus,due};

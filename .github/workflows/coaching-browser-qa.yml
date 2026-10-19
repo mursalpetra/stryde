@@ -29,8 +29,8 @@ jobs:
       - name: Check syntax and deterministic models
         run: |
           for f in *.js; do node --check "$f"; done
-          node --test tests/test_account_model.mjs
-          python3 -m py_compile tests/test_browser.py
+          node --test tests/*.mjs
+          python3 -m py_compile tests/test_browser.py tests/test_dynamic_browser.py
           git diff --check
       - name: Install pinned official browser testing dependencies
         run: |
@@ -39,7 +39,9 @@ jobs:
           /tmp/stryde-qa/bin/python -m playwright install --with-deps chromium
           echo "CHROMIUM_PATH=$(/tmp/stryde-qa/bin/python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')" >> "$GITHUB_ENV"
       - name: Run synthetic browser and mobile regressions
-        run: /tmp/stryde-qa/bin/python tests/test_browser.py -v
+        run: |
+          /tmp/stryde-qa/bin/python tests/test_browser.py -v
+          /tmp/stryde-qa/bin/python tests/test_dynamic_browser.py -v
       - name: Save synthetic-only review screenshots
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
