@@ -113,6 +113,64 @@ class DynamicBrowserRegressions(BrowserRegressions):
         self.assertEqual(self.state()["extraWorkouts"][0]["prescriptionSnapshot"], snapshot)
         self.assertNotEqual(snapshot["exercises"][0]["reps"], 5)
 
+    def test_adaptive_postblock_pending_workout_restores_resumes_and_discards(self):
+        # Override only the synthetic clock immediately before app initialization.
+        # The original harness still blocks all production network traffic.
+        def after_block_clock(route):
+            response = route.fetch()
+            clock = """(() => {
+              const NativeDate=Date, instant=NativeDate.parse('2026-12-21T04:00:00Z');
+              window.Date=class extends NativeDate {
+                constructor(...args){super(...(args.length?args:[instant]));}
+                static now(){return instant;}
+              };
+            })();\n"""
+            route.fulfill(response=response, body=clock + response.text())
+
+        self.page.route("**/v2-core.js?*", after_block_clock)
+        seed = adaptive_fixture("Post-block pending")
+        seed.update({"week": 11, "selectedDay": 5})
+        session = {
+            "id": "synthetic-postblock-draft", "date": "2026-12-19", "status": "in_progress",
+            "choice": {"id": "upper", "type": "upper", "kind": "strength", "name": "Synthetic saved upper workout", "ids": [4], "minutes": 30},
+            "snapshot": {"version": 1, "date": "2026-12-19", "type": "upper", "name": "Synthetic saved upper workout", "minutes": 30, "exercises": [
+                {"id": 4, "name": "Lat Pulldown", "sets": 2, "reps": 10, "weight": "", "unit": "lbs", "muscles": ["Lats", "Biceps"], "cue": "Synthetic technique cue", "restSeconds": 90, "alternative": None}
+            ]},
+            "check": {"comfort": "comfortable", "soreness": "none", "energy": 4, "minutes": 30, "historyComplete": True},
+            "values": {"movement-4": "original", "weight-4": "15", "reps-4-0": "8", "notes": "Synthetic unfinished entry"},
+            "startedAt": "2026-12-19T04:00:00Z", "updatedAt": "2026-12-19T04:05:00Z",
+        }
+        seed["adaptiveSchedule"] = {"version": 1, "checkins": {}, "activeSession": session}
+        self.boot(seed)
+        self.assertEqual(self.page.evaluate("strydeProgressModel.iso()"), "2026-12-21")
+        self.assertEqual(self.page.evaluate("strydeScheduleModel.build(state,[],strydeProgressModel.iso()).days"), {})
+        card = self.page.locator("[data-adaptive-pending]")
+        card.wait_for(state="visible")
+        self.assertEqual(self.page.locator('[data-adaptive="check"],[data-adaptive="start"]').count(), 0)
+        self.assertEqual(self.state()["adaptiveSchedule"]["activeSession"]["snapshot"], session["snapshot"])
+        card.locator('[data-adaptive="resume"]').click()
+        form = self.page.locator("#adaptive-workout-form")
+        self.assertEqual(form.locator('[name="weight-4"]').input_value(), "15")
+        self.assertEqual(form.locator('[name="reps-4-0"]').input_value(), "8")
+        self.assertEqual(form.locator('[name="notes"]').input_value(), "Synthetic unfinished entry")
+        self.page.locator('.adaptive-dialog-head [data-adaptive="close"]').click()
+        self.page.evaluate("go('plan')")
+        self.page.locator("[data-adaptive-pending]").wait_for(state="visible")
+        self.page.reload(wait_until="networkidle")
+        card = self.page.locator("[data-adaptive-pending]")
+        card.wait_for(state="visible")
+        self.assertEqual(self.state()["adaptiveSchedule"]["activeSession"]["id"], session["id"])
+        card.locator('[data-adaptive="discard"]').click()
+        self.assertFalse(self.state()["adaptiveSchedule"].get("activeSession"))
+        self.assertEqual(self.state()["extraWorkouts"], [])
+        self.assertEqual(self.state()["logs"], seed["logs"])
+        self.assertEqual(self.page.locator("[data-adaptive-pending]").count(), 0)
+        self.page.reload(wait_until="networkidle")
+        self.assertFalse(self.state()["adaptiveSchedule"].get("activeSession"))
+        self.assertEqual(self.page.locator("[data-adaptive-pending]").count(), 0)
+        self.assertEqual(self.page.locator('[data-adaptive="check"],[data-adaptive="start"]').count(), 0)
+        self.assertEqual(self.state()["extraWorkouts"], [])
+
     def test_adaptive_pain_and_soreness_gate_the_actual_options(self):
         self.boot_adaptive()
         self.check_readiness(comfort="pain")
@@ -133,6 +191,44 @@ class DynamicBrowserRegressions(BrowserRegressions):
         self.assertEqual(self.page.locator('[data-adaptive="start"]').count(), 0)
         self.assertEqual(self.page.locator("#adaptive-workout-form").count(), 0)
         self.assertEqual(self.state()["logs"], before["logs"])
+        self.assertEqual(self.state()["extraWorkouts"], [])
+
+    def test_adaptive_newer_coach_symptoms_invalidate_open_choices(self):
+        self.boot_adaptive()
+        self.check_readiness()
+        self.assertEqual(self.state()["adaptiveSchedule"]["checkins"][TODAY]["updatedAt"], "2026-10-10T04:00:00.000Z")
+        self.page.evaluate("""() => {state.coaching.recovery['2026-10-10']={comfort:'pain',energy:1,updatedAt:'2026-10-10T04:01:00Z'};save();}""")
+        self.page.locator('[data-adaptive="choose"][data-choice="upper"]').click()
+        self.assertIn("readiness changed", self.page.locator("[data-adaptive-error]").inner_text())
+        self.assertEqual(self.page.locator('[data-adaptive="start"]').count(), 0)
+        self.page.locator('[data-adaptive="check"]').last.click()
+        form = self.page.locator("#adaptive-readiness-form")
+        self.assertEqual(form.locator('[name="comfort"]').input_value(), "pain")
+        self.assertEqual(form.locator('[name="energy"]').input_value(), "1")
+        self.assertFalse(self.state()["adaptiveSchedule"].get("activeSession"))
+        self.assertEqual(self.state()["extraWorkouts"], [])
+
+    def test_adaptive_rest_choice_is_newer_than_earlier_cross_source_checks(self):
+        self.boot_adaptive()
+        self.check_readiness()
+        self.page.evaluate("""() => {state.adaptiveSchedule.checkins['2026-10-10'].updatedAt='2026-10-10T01:00:00Z';state.coaching.recovery['2026-10-10']={comfort:'comfortable',energy:4,rest:false,updatedAt:'2026-10-10T03:00:00Z'};save();}""")
+        self.page.locator('[data-adaptive="rest"]').click()
+        check = self.state()["adaptiveSchedule"]["checkins"][TODAY]
+        self.assertEqual(check["restUpdatedAt"], "2026-10-10T04:00:00.000Z")
+        self.assertEqual(check["updatedAt"], "2026-10-10T01:00:00Z")
+        self.assertEqual(self.page.evaluate("strydeScheduleModel.build(state,[],'2026-10-10').days['2026-10-10'].type"), "recovery")
+        self.assertIn("You chose recovery", self.page.locator(".adaptive-readiness").inner_text())
+        self.assertEqual(self.state()["extraWorkouts"], [])
+
+    def test_adaptive_newer_adverse_check_blocks_starting_an_old_preview(self):
+        self.boot_adaptive()
+        self.check_readiness()
+        self.page.locator('[data-adaptive="choose"][data-choice="upper"]').click()
+        self.page.evaluate("""() => {Object.assign(state.adaptiveSchedule.checkins['2026-10-10'],{comfort:'pain',energy:1,updatedAt:'2026-10-10T04:01:00Z'});save();}""")
+        self.page.locator('[data-adaptive="start"]').click()
+        self.assertIn("readiness changed", self.page.locator("[data-adaptive-error]").inner_text())
+        self.assertEqual(self.page.locator("#adaptive-workout-form").count(), 0)
+        self.assertFalse(self.state()["adaptiveSchedule"].get("activeSession"))
         self.assertEqual(self.state()["extraWorkouts"], [])
 
     def test_adaptive_account_switch_dismisses_unsaved_form_and_blocks_conflicted_changes(self):

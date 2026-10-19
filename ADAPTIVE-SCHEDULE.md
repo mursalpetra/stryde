@@ -13,6 +13,8 @@ This additive extension derives upcoming recommendations from actual saved worko
 - Long-run distance never exceeds the longest recorded run from the last 28 days or the original template distance. Limited running history downgrades the long slot to short easy run/walk guidance. Future weeks are provisional and never assume future sessions were completed.
 - Active race dates are preserved as milestones, not assertions of readiness. Optional training is blocked in the final two days and on the race date. The original training block still ends on its original date; a new block requires review.
 - Pain, unusual soreness/tiredness, low energy, incomplete activity history, and an unresolved started session prevent a new optional workout. Each new workout requires a fresh day's check; this is not medical clearance.
+- Recovery and adaptive check-ins resolve answered comfort/energy fields by their latest timestamp, with the more cautious signal retained when timestamps are missing or tied. Options are revalidated before choosing or starting, so a newer symptom report blocks a stale preview.
+- Saved unfinished workouts remain available to resume or discard after the original training block ends. They never create a new training block or count as completed activity.
 
 ## Policy rationale and limits
 

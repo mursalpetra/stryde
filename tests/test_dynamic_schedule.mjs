@@ -275,3 +275,106 @@ test('an explicit rest choice converts today’s planned training to recovery wi
   assert.deepEqual(state.logs,{});
   assert.deepEqual(state.extraWorkouts,[]);
 });
+
+test('a completed legacy log follows performed_on and never reserves its original planned key as started', () => {
+  const completed={status:'done',session_type:'run',performed_on:'2026-10-18',actual:'6',minutes:'45',effort:'3',started_at:'2026-10-18T01:00:00Z',timing:{state:'finished',started_at:'2026-10-18T01:00:00Z',ended_at:'2026-10-18T01:45:00Z'},prescriptionSnapshot:{recordedAt:'2026-10-18T01:00:00Z',preserved:true}};
+  const state=stateFixture({logs:{'3-1':completed}}),{M,P}=environment(state),before=copy(state),rows=P.records(state,[]);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].date,'2026-10-18');
+  assert.equal(rows[0].id,'plan:3-1');
+  assert.equal(M.build(state,rows,'2026-10-18').days['2026-10-18'].type,'completed');
+  for(const date of [TODAY,'2026-10-20']) {
+    const plan=copy(M.build(state,rows,date));
+    assert.notEqual(plan.days['2026-10-20'].type,'started');
+    assert.equal(plan.days['2026-10-20'].legacyKey,undefined);
+    assert.deepEqual(plan,copy(M.build(stateFixture(),rows,date)),'The performed activity should be the only load; an old key must add no phantom reservation');
+  }
+  assert.deepEqual(state,before);
+});
+
+const READINESS_DAY='2026-10-17';
+const EARLIER_CHECK='2026-10-17T01:00:00Z';
+const LATER_CHECK='2026-10-17T03:00:00Z';
+function withReadiness(adaptive,coach) {
+  const state=stateFixture({adaptiveSchedule:{version:1,checkins:{[READINESS_DAY]:adaptive}},coaching:{recovery:{[READINESS_DAY]:coach}}});
+  return {...environment(state),state};
+}
+
+test('newer Coach pain or low energy overrides an older comfortable adaptive check in both planning and options', () => {
+  for(const adverse of [{comfort:'pain',energy:4},{comfort:'comfortable',energy:1},{comfort:'pain',energy:1}]) {
+    const {state,M}=withReadiness(ready({updatedAt:EARLIER_CHECK}),{...adverse,updatedAt:LATER_CHECK}),before=copy(state);
+    const check=M.readiness(state,READINESS_DAY);
+    assert.equal(check.comfort,adverse.comfort);
+    assert.equal(check.energy,adverse.energy);
+    assert.equal(M.build(state,[],READINESS_DAY).days[READINESS_DAY].type,'recovery');
+    assert.deepEqual(copy(M.options(state,[],READINESS_DAY).choices.map(c=>c.id)),['rest']);
+    assert.deepEqual(state,before);
+  }
+});
+
+test('newer complete adaptive rechecks can clear older adverse Coach records without deleting their history', () => {
+  const {state,M}=withReadiness(ready({updatedAt:LATER_CHECK}),{comfort:'pain',energy:1,rest:true,updatedAt:EARLIER_CHECK}),before=copy(state);
+  const check=M.readiness(state,READINESS_DAY);
+  assert.equal(check.comfort,'comfortable');
+  assert.equal(check.energy,4);
+  assert.equal(check.rest,false);
+  assert.ok(exercise(M.build(state,[],READINESS_DAY).days[READINESS_DAY]));
+  assert.ok(M.options(state,[],READINESS_DAY).choices.some(c=>c.id!=='rest'));
+  assert.deepEqual(state,before);
+});
+
+test('untimestamped or invalid-timestamp adverse signals win over equally undated positive signals', () => {
+  for(const stamp of [undefined,'not-a-timestamp']) {
+    for(const reverse of [false,true]) {
+      const positive=ready(stamp?{updatedAt:stamp}:{}),negative={comfort:'pain',energy:1,...(stamp?{updatedAt:stamp}:{})};
+      const {state,M}=reverse?withReadiness({...positive,...negative},{comfort:'comfortable',energy:4,...(stamp?{updatedAt:stamp}:{})}):withReadiness(positive,negative);
+      const before=copy(state),check=M.readiness(state,READINESS_DAY);
+      assert.equal(check.comfort,'pain');
+      assert.equal(check.energy,1);
+      assert.deepEqual(copy(M.options(state,[],READINESS_DAY).choices.map(c=>c.id)),['rest']);
+      assert.equal(M.build(state,[],READINESS_DAY).days[READINESS_DAY].type,'recovery');
+      assert.deepEqual(state,before);
+    }
+  }
+});
+
+test('a new timestamped explicit adaptive recheck resolves an older untimestamped adverse signal', () => {
+  const {state,M}=withReadiness(ready(),{comfort:'pain',energy:1,rest:true}),before=copy(state);
+  assert.deepEqual(copy(M.options(state,[],READINESS_DAY).choices.map(c=>c.id)),['rest']);
+  const explicit=ready({updatedAt:LATER_CHECK}),resolved=M.readiness(state,READINESS_DAY,explicit);
+  assert.equal(resolved.comfort,'comfortable');
+  assert.equal(resolved.energy,4);
+  assert.equal(resolved.rest,false);
+  assert.ok(M.options(state,[],READINESS_DAY,explicit).choices.some(c=>c.id!=='rest'));
+  assert.deepEqual(state,before,'Resolving a recommendation does not itself save a check-in');
+});
+
+test('conflicting equally timestamped readiness records retain the adverse signal', () => {
+  for(const reverse of [false,true]) {
+    const positive=ready({updatedAt:LATER_CHECK}),negative={comfort:'pain',energy:1,updatedAt:LATER_CHECK};
+    const {state,M}=reverse?withReadiness({...positive,...negative},{comfort:'comfortable',energy:4,updatedAt:LATER_CHECK}):withReadiness(positive,negative);
+    assert.deepEqual(copy(M.options(state,[],READINESS_DAY).choices.map(c=>c.id)),['rest']);
+  }
+});
+
+test('readiness cannot offer exercise before or after the supported training block', () => {
+  const state=stateFixture(),{M}=environment(state),before=copy(state);
+  for(const date of [add(START,-1),'2026-09-01',add(RACE,1),'2027-01-04']) {
+    const result=M.options(state,[],date,ready());
+    assert.deepEqual(copy(result.choices.map(c=>c.id)),['rest'],`Out-of-block exercise offered for ${date}`);
+    assert.deepEqual(state,before);
+  }
+});
+
+test('a new rest choice wins without renewing older comfort or energy answers', () => {
+  const {state,M}=withReadiness(ready({updatedAt:EARLIER_CHECK,restChosen:true,restUpdatedAt:'2026-10-17T04:00:00Z'}),{comfort:'pain',energy:1,rest:false,updatedAt:LATER_CHECK});
+  const resolved=M.readiness(state,READINESS_DAY);
+  assert.equal(resolved.rest,true);
+  assert.equal(resolved.comfort,'pain');
+  assert.equal(resolved.energy,1);
+  state.coaching.recovery[READINESS_DAY].comfort='comfortable';
+  state.coaching.recovery[READINESS_DAY].energy=4;
+  assert.equal(M.readiness(state,READINESS_DAY).rest,true);
+  assert.equal(M.build(state,[],READINESS_DAY).days[READINESS_DAY].type,'recovery');
+  assert.deepEqual(copy(M.options(state,[],READINESS_DAY).choices.map(c=>c.id)),['rest']);
+});

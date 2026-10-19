@@ -53,10 +53,20 @@
   }
   function readiness(s,today,check) {
     const r=s.coaching?.recovery?.[today]||{},c=check||s.adaptiveSchedule?.checkins?.[today]||{};
-    const rawComfort=c.comfort||r.comfort||'unknown';
-    const comfort=['comfortable','sore','pain'].includes(rawComfort)?rawComfort:'unknown';
-    const rawEnergy=P.n(c.energy)??P.n(r.energy),energy=rawEnergy>=1&&rawEnergy<=5?rawEnergy:null;
-    return {...c,comfort,energy,soreness:c.soreness||'none',minutes:P.n(c.minutes)>=10&&P.n(c.minutes)<=90?P.n(c.minutes):null,historyComplete:c.historyComplete===true,rest:r.rest===true||c.restChosen===true};
+    const timestamp=x=>typeof x.updatedAt==='string'&&Number.isFinite(Date.parse(x.updatedAt))?Date.parse(x.updatedAt):null;
+    const ct=timestamp(c),rt=timestamp(r),comfortOf=x=>['comfortable','sore','pain'].includes(x.comfort)?x.comfort:null;
+    const energyOf=x=>{const n=P.n(x.energy);return n>=1&&n<=5?n:null;};
+    // The latest explicit report wins per answered field. Older records without a
+    // timestamp (or simultaneous reports) keep the more cautious signal.
+    const newer=ct!==null&&(rt===null||ct>rt)?c:rt!==null&&(ct===null||rt>ct)?r:null;
+    const older=newer===c?r:c;
+    const comfort=newer?(comfortOf(newer)||comfortOf(older)||'unknown'):['pain','sore','comfortable'].find(v=>[c,r].some(x=>comfortOf(x)===v))||'unknown';
+    const energies=[energyOf(c),energyOf(r)].filter(x=>x!==null);
+    const energy=newer?(energyOf(newer)??energyOf(older)):(energies.length?Math.min(...energies):null);
+    // Choosing rest is a new rest decision, not a fresh symptom/energy answer.
+    const crt=timestamp({updatedAt:c.restUpdatedAt})??ct;
+    const rest=crt!==null&&(rt===null||crt>rt)?c.restChosen===true:rt!==null&&(crt===null||rt>crt)?r.rest===true:r.rest===true||c.restChosen===true;
+    return {...c,comfort,energy,soreness:c.soreness||'none',minutes:P.n(c.minutes)>=10&&P.n(c.minutes)<=90?P.n(c.minutes):null,historyComplete:c.historyComplete===true,rest};
   }
   function blocked(type,c) {
     if(c.rest||c.comfort==='pain'||c.comfort==='sore'||(c.energy!==null&&c.energy<=2))return true;
@@ -82,7 +92,7 @@
       days[d]=day('recovery',d,'Recovery space is protected. Missed sessions are not carried forward.');
       const log=s.logs?.[keyFor(d)],done=actual.filter(r=>r.date===d);
       if(done.length)days[d]=day('completed',d,'Recorded activity is preserved; the remaining plan adapts around it.',{activities:done,kind:done[0].kind});
-      else if(log&&(log.status==='in_progress'||log.timing||log.started_at||Object.keys(log.exercises||{}).length)){
+      else if(log&&log.status!=='done'&&(log.status==='in_progress'||log.timing||log.started_at||Object.keys(log.exercises||{}).length)){
         days[d]=day('started',d,'The saved session and its prescription stay unchanged. Finish or review it before selecting another workout.',{legacyKey:keyFor(d)});
         const groups=muscleGroups({kind:['easy','long'].includes(base(d))?'run':'strength',exercises:log.exercises});occupied.push({date:d,kind:'strength',groups});
       }
@@ -136,6 +146,7 @@
   }
   function options(s={},rows=[],today=P.iso(),input) {
     const c=readiness(s,today,input),actual=actuals(rows,today),rest=day('rest',today,'Rest is a successful choice. No missed training needs to be made up.',{id:'rest'}),choices=[rest],warnings=[];
+    if(!P.validDate(today)||today<START||today>END)return {choices,reason:'This training block is not active. Review your next block before choosing a new workout. An unfinished saved workout can still be reviewed.',warnings};
     if(c.comfort!=='comfortable'||c.energy===null||c.minutes===null||c.minutes<10||!c.historyComplete||c.rest){
       return {choices,reason:c.comfort==='pain'?'Pause exercise for pain or other symptoms. Seek appropriate advice before resuming.':!c.historyComplete?'Sync or add missing workouts, then confirm your recent activity so the recommendation does not repeat an unknown muscle load.':'Rest or gentle comfortable movement today; a short readiness check is needed before an exercise option.',warnings};
     }

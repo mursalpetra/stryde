@@ -14,7 +14,12 @@
   const schedule = () => S.build(state, rows(), today());
   const selectedDate = () => dateForDay(Math.max(0,Math.min(6,Number.isInteger(state.selectedDay)?state.selectedDay:(new Date(today()+'T12:00:00Z').getUTCDay()+6)%7)));
   const button = (action,label,extra='',primary=false) => `<button type="button" class="btn ${primary?'orange':''}" data-adaptive="${action}" ${extra}>${label}</button>`;
-  const activeLegacy = date => { const l = state.logs?.[S.keyFor(date)]; return !!l && (l.status==='done'||l.status==='in_progress'||l.timing||l.started_at||l.prescriptionSnapshot||Object.keys(l.exercises||{}).length); };
+  const activeLegacy = date => {
+    const key=S.keyFor(date),l=state.logs?.[key];
+    if(!l)return false;
+    if(l.status==='done')return P.logDate(key,l)===date;
+    return !!(l.status==='in_progress'||l.timing||l.started_at||l.prescriptionSnapshot||Object.keys(l.exercises||{}).length);
+  };
   let dialog = null, dialogState = null, checkDate = null, choiceResult = null, draft = null, notice = '', lastDate = today(), rolloverTimer = null;
   function writable() {
     const account = window.strydeAccountStatus?.() || {};
@@ -77,7 +82,7 @@
     const node=dialog?.querySelector('[data-adaptive-error]');
     if(node)node.textContent=err.message;else {notice=err.message;mount();}
   }
-  const checkSummary = c => !c?'':c.restChosen?'You chose recovery today. Check readiness again if you want to reconsider.':c.comfort==='pain'?'Pain or other symptoms recorded: pause exercise and seek appropriate advice.':c.comfort==='sore'||c.energy<=2||c.soreness==='both'?'Your readiness check calls for recovery today.':c.soreness==='lower'?'Lower-body soreness recorded: keep lower-body loading off today’s options.':c.soreness==='upper'?'Upper-body soreness recorded: keep upper-body loading off today’s options.':!c.historyComplete?'Recent activity is not confirmed. Review missing workouts before choosing another session.':'Readiness checked today. You can check again if anything changes.';
+  const checkSummary = c => !c?'':c.rest?'You chose recovery today. Check readiness again if you want to reconsider.':c.comfort==='pain'?'Pain or other symptoms recorded: pause exercise and seek appropriate advice.':c.comfort==='sore'||(c.energy!==null&&c.energy<=2)||c.soreness==='both'?'Your readiness check calls for recovery today.':c.soreness==='lower'?'Lower-body soreness recorded: keep lower-body loading off today’s options.':c.soreness==='upper'?'Upper-body soreness recorded: keep upper-body loading off today’s options.':!c.historyComplete?'Recent activity is not confirmed. Review missing workouts before choosing another session.':'Readiness checked today. You can check again if anything changes.';
   function weekly(plan,date) {
     const start = S.weekStart(date), end=P.add(start,6);
     const days=Object.values(plan.days).filter(d=>d.date>=start&&d.date<=end&&d.date>=today());
@@ -87,17 +92,25 @@
   function mount() {
     if (!['today','plan'].includes(view)) return;
     const active=restoreDraft(),date=selectedDate(),plan=schedule(),day=plan.days[date];
-    ROOT.querySelectorAll('[data-adaptive-week]').forEach(el=>el.remove());
+    const pending=active&&active.owner===state&&!active.saved&&active.startedAt;
+    ROOT.querySelectorAll('[data-adaptive-week],[data-adaptive-pending]').forEach(el=>el.remove());
     let focus=ROOT.querySelector('[data-adaptive-focus]');
     if(!focus)focus=[...ROOT.querySelectorAll('.card')].find(el=>el.querySelector('button[onclick^="openSession("]'));
+    // A saved workout remains reachable even after the dated planning block ends,
+    // or while historical/legacy/future selection keeps the original focus card.
+    if(pending&&(!focus||date!==today()||activeLegacy(date)||!day||day.type==='completed'||day.legacyKey)) {
+      const card=document.createElement('section');card.className='card adaptive-focus';card.setAttribute('data-adaptive-pending','');
+      card.innerHTML=`<div class="eyebrow">SAVED UNFINISHED WORKOUT</div><h3>${h(active.choice.name||'Your workout')}</h3><p class="adaptive-note">Started ${h(dateLabel(active.date))}. Your entered sets and original prescription are saved. Continue this workout or discard the unfinished draft; neither action starts a new session.</p><div class="adaptive-actions">${button('resume','Continue workout','',true)}${button('discard','Discard unfinished workout')}</div>${notice?`<p class="adaptive-notice" role="status">${h(notice)}</p>`:''}`;
+      if(focus)focus.before(card);else {const hero=ROOT.querySelector('.hero');if(hero)hero.after(card);else ROOT.append(card);}
+    }
     if(!focus)return;
     if(date<today()||activeLegacy(date)||!day) {
       if(focus.hasAttribute('data-adaptive-focus'))return;
       if(date>=today())focus.insertAdjacentHTML('afterend',weekly(plan,date));
       return;
     }
-    const isToday=date===today(), completed=day.type==='completed', future=!isToday, pending=active&&active.owner===state&&!active.saved&&active.startedAt;
-    const c=state.adaptiveSchedule?.checkins?.[date],legacyPending=day.type==='started'&&day.legacyKey,rest=day.kind==='recovery'&&day.type!=='started';
+    const isToday=date===today(), completed=day.type==='completed', future=!isToday;
+    const c=(state.adaptiveSchedule?.checkins?.[date]||state.coaching?.recovery?.[date])?S.readiness(state,date):null,legacyPending=day.type==='started'&&day.legacyKey,rest=day.kind==='recovery'&&day.type!=='started';
     focus.setAttribute('data-adaptive-focus','');focus.className='card adaptive-focus';
     focus.innerHTML=`<div class="adaptive-kicker"><div class="eyebrow">${isToday?'● TODAY':'SELECTED DAY'} · ADAPTIVE PLAN</div><span>${future?'Preview':completed?'Recorded':rest?'Recovery first':'Based on your logs'}</span></div><div class="hero"><h1>${pending&&isToday?'Continue '+h(active.choice.name):rest&&isToday?'Rest is still a good option':h(day.name)}</h1><p class="sub">${pending&&isToday?'Your unfinished workout and entered sets are saved. Complete or discard it before choosing another session.':completed?'Your recorded activity is already included in the remaining week.':rest?'Recovery counts. You do not need to make up a missed session.':`${day.kind==='strength'?'Indoor strength':'Outdoor run / walk'}${day.minutes?' · up to '+day.minutes+' min':''}${day.km?' · at most '+day.km+' km':''}`}</p></div>${day.type!==day.originalType&&!completed?`<p class="adaptive-original">Original: ${h(originalNames[day.originalType]||day.originalType)} · Updated: ${h(day.name)}</p>`:''}<p class="adaptive-reason">${h(day.reason)}</p>${isToday&&c?`<p class="adaptive-readiness">${h(checkSummary(c))}</p>`:''}<div class="adaptive-actions">${completed?button('progress','See recorded activity'):legacyPending?button('legacy','Continue saved workout',`data-key="${h(day.legacyKey)}"`,true):future?button('preview','Preview this day',`data-date="${date}"`):pending?button('resume','Continue workout','',true):button('check',rest?'Want to move? Check your options':'Check readiness & choose',`data-date="${date}"`,true)}</div>${isToday&&!completed?'<p class="adaptive-note">Choose an indoor muscle focus or a short outdoor option when your recovery allows it. Choosing does not count as a completed workout.</p>':''}${notice?`<p class="adaptive-notice" role="status">${h(notice)}</p>`:''}`;
     focus.insertAdjacentHTML('afterend',weekly(plan,date));
@@ -109,7 +122,7 @@
     if(date!==today())return preview(date);
     if(draft?.startedAt&&!draft.saved)return workout();
     draft=null;checkDate=date;choiceResult=null;
-    const c=state.adaptiveSchedule?.checkins?.[date]||{};
+    const c=S.readiness(state,date);
     modal('A quick check for today',`<form id="adaptive-readiness-form" class="adaptive-form"><p>Rest stays available. Tell STRYDE how you feel and how much time you have before choosing one session.</p><label>How does movement feel?<select name="comfort" required><option value="">Choose…</option>${[['comfortable','Comfortable / pain-free'],['sore','Unusually sore or tired'],['pain','Pain or other symptoms']].map(([v,l])=>`<option value="${v}" ${c.comfort===v?'selected':''}>${l}</option>`).join('')}</select></label><label>Any ordinary muscle soreness?<select name="soreness" required>${[['none','None'],['lower','Lower body'],['upper','Upper body'],['both','Upper and lower body']].map(([v,l])=>`<option value="${v}" ${c.soreness===v?'selected':''}>${l}</option>`).join('')}</select></label><div class="adaptive-fields"><label>Energy, 1–5<input name="energy" type="number" min="1" max="5" step="1" required value="${h(c.energy??'')}" placeholder="1 = low, 5 = good"></label><label>Time available (minutes)<input name="minutes" type="number" min="10" max="90" step="1" required value="${h(c.minutes??'')}" placeholder="10–90"></label></div><label class="adaptive-check"><input name="historyComplete" type="checkbox" ${c.historyComplete?'checked':''}>My workouts from the last 14 days are logged or synced, including yesterday.</label><p class="adaptive-note">If something is missing, sync Strava or log the actual workout in Progress first. An empty day is not proof of rest.</p><div class="adaptive-actions"><button class="btn orange" type="submit">See today’s options</button>${button('close','Keep recovery / close')}</div></form>`);
   }
   const alternatives = {
@@ -147,7 +160,9 @@
   }
   function choose(id) {
     writable();if(state.adaptiveSchedule?.activeSession)throw Error('Continue or discard the unfinished workout before choosing another.');if(checkDate!==today())throw Error('The date has changed. Close and check today’s readiness again.');
-    const c=choiceResult?.choices.find(c=>c.id===id);if(!c||c.id==='rest')return;
+    if(!choiceResult?.choices.some(c=>c.id===id)||id==='rest')return;
+    const c=S.options(state,rows(),today()).choices.find(c=>c.id===id);
+    if(!c)throw Error('Recent activity or readiness changed. Check today’s options again before choosing.');
     // The prescription is frozen at this deliberate choice, before any activity is saved.
     draft={id:crypto.randomUUID(),owner:state,date:today(),choice:clone(c),snapshot:prescription(c),check:clone(state.adaptiveSchedule.checkins[today()]),values:{},startedAt:null,saved:false};
     modal(c.name,`<div class="eyebrow">${c.kind==='strength'?'INDOOR STRENGTH':c.type==='long'?'OUTDOOR EASY RUN':'SHORT OUTDOOR OPTION'} · ${h(dose(c))}</div>${prescriptionMarkup(draft.snapshot)}<p class="adaptive-note">This session is a suggestion. Use familiar equipment and choose a substitute only if you know the movement. Skip anything that does not feel right.</p><div class="adaptive-actions">${button('start','Start & open actual log','',true)}${button('options','Back to options')}</div>`,draft.owner);
@@ -217,7 +232,7 @@
       if(!f.reportValidity())return;
       if(f.id==='adaptive-workout-form')return finish(f);
       writable();if(checkDate!==today())throw Error('The date has changed. Close and check today again.');
-      const v=Object.fromEntries(new FormData(f)),check={comfort:v.comfort,soreness:v.soreness,energy:Number(v.energy),minutes:Number(v.minutes),historyComplete:v.historyComplete==='on'};
+      const v=Object.fromEntries(new FormData(f)),check={comfort:v.comfort,soreness:v.soreness,energy:Number(v.energy),minutes:Number(v.minutes),historyComplete:v.historyComplete==='on',updatedAt:new Date().toISOString()};
       if(!['comfortable','sore','pain'].includes(check.comfort)||!['none','lower','upper','both'].includes(check.soreness)||!Number.isInteger(check.energy)||check.energy<1||check.energy>5||!Number.isInteger(check.minutes)||check.minutes<10||check.minutes>90)throw Error('Complete the readiness fields with valid values.');
       const next=clone(state.adaptiveSchedule||{version:1,checkins:{}});next.checkins=next.checkins||{};next.checkins[checkDate]=check;
       commit({adaptiveSchedule:next});choiceResult=S.options(state,rows(),today(),check);mount();choices();
@@ -243,14 +258,14 @@
       if(action==='rest'){
         writable();if(checkDate!==today())throw Error('The date changed. Check today’s readiness again.');
         const next=clone(state.adaptiveSchedule||{version:1,checkins:{}});next.checkins=next.checkins||{};
-        next.checkins[today()]={...(next.checkins[today()]||{}),restChosen:true};commit({adaptiveSchedule:next});
+        next.checkins[today()]={...(next.checkins[today()]||{}),restChosen:true,restUpdatedAt:new Date().toISOString()};commit({adaptiveSchedule:next});
         draft=null;notice='Rest is a good choice. Your check-in is saved; no workout was added.';close();window.render();return;
       }
       if(action==='options'){draft=null;return choices();}
       if(action==='choose')return choose(b.dataset.choice);
       if(action==='start'){
         writable();if(!draft||draft.date!==today())throw Error('The date changed. Check today’s readiness before starting.');
-        if(!draft.startedAt&&!S.options(state,rows(),today(),draft.check).choices.some(c=>c.id===draft.choice.id))throw Error('Recent activity or readiness changed. Close this preview and check today’s options again.');
+        if(!draft.startedAt&&!S.options(state,rows(),today()).choices.some(c=>c.id===draft.choice.id))throw Error('Recent activity or readiness changed. Close this preview and check today’s options again.');
         draft.startedAt=draft.startedAt||new Date().toISOString();persistDraft();mount();return workout();
       }
       if(action==='resume'){restoreDraft();return workout();}
