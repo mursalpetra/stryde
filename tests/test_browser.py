@@ -486,7 +486,9 @@ class BrowserRegressions(unittest.TestCase):
         self.settle("state.coaching.blocks[0].status==='accepted'")
         self.page.locator(".coach-card").last.scroll_into_view_if_needed()
         self.screenshot("training-accepted-mobile.png", scroll_top=False)
-        self.page.evaluate("state.week=2;openSession(2)")
+        # Exercise the retained legacy timer component directly. The new adaptive
+        # navigation separately forbids starting a future-day workout.
+        self.page.evaluate("state.week=2;sessionDay=2;view='session';render()")
         self.page.locator('[data-time-action="start"]').click()
         self.settle("state.logs['2-2']?.timing?.state==='running'")
         snapshot = self.state()["logs"]["2-2"]["prescriptionSnapshot"]
