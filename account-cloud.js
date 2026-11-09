@@ -412,6 +412,17 @@
     }
   };
 
+  // Attendance is read separately; importing visits cannot overwrite offline workout logs.
+  window.strydeFetchAttendance = async () => {
+    if (!client || !user) throw Error('Log in to load your gym attendance.');
+    const uid=user.id, version=epoch;
+    const {data,error}=await client.from('stryde_attendance_events')
+      .select('id,attendance_date,checked_in_at,time_zone,venue,source,source_end_label,notes')
+      .eq('user_id',uid).order('attendance_date',{ascending:false}).order('checked_in_at',{ascending:true});
+    if (version!==epoch || user?.id!==uid) throw Error('Account changed. Reopen attendance.');
+    if (error) throw Error('Unable to load gym attendance. Check your connection and retry.');
+    return {userId:uid,rows:data||[]};
+  };
   if (rootElement) new MutationObserver(paintButton).observe(rootElement, { childList: true, subtree: true });
   paintButton();
   window.addEventListener('online', () => {

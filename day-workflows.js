@@ -65,19 +65,20 @@
   };
   function originalPlan(date){
     const point=calendarPoint(date);if(!point?.inPlan)return {name:'No scheduled session',detail:'Outside the dated training block.',point};
-    const {week,day}=point,kind=[1,4,6].includes(day)?'run':[2,5].includes(day)?'strength':'recovery';
-    const w=WEEKS[week-1],km=day===1?w[0]:day===4?w[1]:day===6?w[2]:null;
+    const {week,day}=point,configured=trainingPlanFor(week,day),{kind,km}=configured;
     const entry=state.logs?.[`${week}-${day}`],snapshot=entry?.prescriptionSnapshot;
-    return {name:nameFor(day),kind,point,km,snapshot,detail:kind==='run'?`${fmt(km)} km planned`:kind==='strength'?`${idsFor(day).length} planned exercises`:'Rest / recovery was scheduled'};
+    return {name:configured.name,kind,point,km,snapshot,detail:kind==='run'?`${fmt(km)} km planned`:kind==='strength'?`${configured.ids.length} planned exercises`:configured.protectedRecovery?'Protected recovery · morning unavailable':'Rest / recovery was scheduled'};
   }
   function summary(date,compact=false){
     const plan=originalPlan(date),actual=getRows().filter(r=>r.date===date);
-    const note=actual.length?actual.map(r=>r.name).join(' · '):date>today()?'Not yet due':'No completed activity logged';
-    let out=`<div class="day-compare"><div><span class="day-label">PLANNED</span><strong>${h(plan.name)}</strong><small>${h(plan.detail)}</small></div><div class="${actual.length?'day-done':''}"><span class="day-label">ACTUALLY DONE</span><strong>${actual.length?'✓ ':''}${h(note)}</strong><small>${actual.length?actual.length+' recorded '+(actual.length===1?'activity':'activities'):'A missing log does not prove you skipped training.'}</small></div></div>`;
+    const attended=(window.strydeAttendance?.forDate(date)||[]).length>0;
+    const note=actual.length?actual.map(r=>r.name).join(' · '):attended?'Gym attendance confirmed':date>today()?'Not yet due':'No completed activity logged';
+    let out=`<div class="day-compare"><div><span class="day-label">PLANNED</span><strong>${h(plan.name)}</strong><small>${h(plan.detail)}</small></div><div class="${actual.length||attended?'day-done':''}"><span class="day-label">ACTUALLY DONE</span><strong>${actual.length||attended?'✓ ':''}${h(note)}</strong><small>${actual.length?actual.length+' recorded '+(actual.length===1?'activity':'activities'):attended?'Attendance only · workout type and duration unknown':'A missing log does not prove you skipped training.'}</small></div></div>`;
+    out+=window.strydeAttendance?.dayMarkup(date,compact)||'';
     if(compact)return out;
     if(plan.snapshot?.exercises){out+=`<details class="day-snapshot"><summary>Targets saved when this session began</summary>${Object.entries(plan.snapshot.exercises).map(([i,e])=>`<p>${h(P.exerciseInfo(i,e)?.name||'Exercise')} · ${h(e.sets)} × ${h(e.reps)} · ${e.weight? h(e.weight+' '+(e.unit||'')):'Load not saved'}</p>`).join('')}</details>`;}
     out+=actual.map(recordCard).join('');
-    if(!actual.length)out+='<p class="day-empty">Your completed exercises, sets, weights and run results will appear here. Nothing in the original plan has been marked complete.</p>';
+    if(!actual.length&&!attended)out+='<p class="day-empty">Your completed exercises, sets, weights and run results will appear here. Nothing in the original plan has been marked complete.</p>';
     return out;
   }
   function recordCard(r){
@@ -89,11 +90,13 @@
   }
   function mountSummary(){
     ROOT.querySelector('[data-day-summary]')?.remove();
+    ROOT.querySelector('[data-availability-note]')?.remove();
     const date=selectedDate(),box=document.createElement('section');box.className='card day-summary';box.dataset.daySummary=date;
     box.innerHTML=`<header><h3>${h(date===today()?'Today’s record':dateLabel(date))}</h3><button class="hub-link" data-day-flow="details" data-date="${date}">View details →</button></header>${summary(date,true)}`;
     const focus=ROOT.querySelector('[data-adaptive-focus]')||Array.from(ROOT.querySelectorAll('.card')).find(e=>e.querySelector('button[onclick^="openSession("]'));
     if(focus)focus.after(box);else ROOT.querySelector('.hero')?.after(box);
     const actions=ROOT.querySelector('.hub-today-actions');
+    if(date>=TRAINING_AVAILABILITY_FROM&&!ROOT.querySelector('[data-availability-note]')){const note=document.createElement('p');note.className='muted';note.dataset.availabilityNote='';note.textContent='Recovery days: Tuesday & Friday · applies from Nov 9. Other days remain adaptable to your recovery.';actions?.after(note);}
     if(actions&&!actions.querySelector('[data-day-flow="today"]'))actions.insertAdjacentHTML('beforeend','<button type="button" class="day-today-button" data-day-flow="today">Today</button>');
     ROOT.querySelectorAll('.daypill').forEach((el,i)=>{const current=state.week===actualWeek&&i===trainingCalendarToday().day;el.toggleAttribute('aria-current',current);if(current)el.setAttribute('aria-current','date');});
   }
@@ -257,6 +260,7 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)hidden=true;else if(hidden){hidden=false;resume();}});
   window.addEventListener('pageshow',()=>resume());
   window.addEventListener('stryde-runs-changed',()=>{if(['today','plan'].includes(view)&&!outsideFocus)mountSummary();if(detailDate)paintDetail(detailDate);});
+  window.addEventListener('stryde-attendance-changed',()=>{if(['today','plan'].includes(view)&&!outsideFocus)mountSummary();if(detailDate)paintDetail(detailDate);});
   window.addEventListener('stryde-account-change',()=>{dayEpoch++;dayCache.clear();inflight.clear();closeDetails();});
   window.strydeDayWorkflows={resume,focusToday,dayDetail,mountExtra,validateExtra,extraMetadata,lookupDay,originalPlan,presets,selectedDate};
   focusToday();window.render();

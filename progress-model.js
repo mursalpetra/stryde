@@ -40,12 +40,13 @@
   function addRecord(r){if(!validDate(r.date)||r.date>today)return;if(r.kind==='run'&&((r.stravaId&&seen.has(String(r.stravaId)))||(links[r.id]&&seen.has(String(links[r.id])))))return;out.push(r)}
   for(const [k,l] of Object.entries(s.logs||{})){
    if(l?.status!=='done')continue;const date=logDate(k,l),d=Number(k.split('-')[1]),ex=l.exercises||{};
-   const kind=l.session_type==='run'||[1,4,6].includes(d)?'run':Object.keys(ex).length||[2,5].includes(d)?'strength':'recovery';
+   const recordedPlan=trainingPlanFor(Number(k.split('-')[0]),d);
+   const kind=['run','strength'].includes(l.session_type)?l.session_type:Object.keys(ex).length?'strength':Number(l.actual)>0?'run':recordedPlan.kind;
    if(kind==='recovery')continue;
    const distance=n(l.actual),minutes=n(l.elapsed_seconds)>0?n(l.elapsed_seconds)/60:n(l.minutes);
    if(kind==='run'&&!(distance>0))continue;
    if(kind==='strength'&&!Object.keys(ex).some(i=>n(ex[i].weight)>0&&reps(ex[i]).length)&&!(minutes>0))continue;
-   addRecord({id:'plan:'+k,date,plannedKey:k,kind,source:'Workout log',name:nameFor(d),distance,minutes,moving:n(l.moving_time_seconds)>0?n(l.moving_time_seconds)/60:null,rpe:n(l.effort),terrain:l.terrain||'',elevation:n(l.elevation_m),type:l.activity_type||'Run',exercises:ex,stravaId:l.strava_activity_id||null,dateInferred:!l.performed_on&&!l.started_at&&!l.timing?.started_at});
+   addRecord({id:'plan:'+k,date,plannedKey:k,kind,source:'Workout log',name:l.name||l.prescriptionSnapshot?.name||(recordedPlan.kind===kind?recordedPlan.name:kind==='run'?'Recorded run':'Recorded strength workout'),distance,minutes,moving:n(l.moving_time_seconds)>0?n(l.moving_time_seconds)/60:null,rpe:n(l.effort),terrain:l.terrain||'',elevation:n(l.elevation_m),type:l.activity_type||'Run',exercises:ex,stravaId:l.strava_activity_id||null,dateInferred:!l.performed_on&&!l.started_at&&!l.timing?.started_at});
   }
   for(const l of s.extraWorkouts||[]){if(l.deleted||l.status!=='done')continue;addRecord({id:'extra:'+l.id,date:l.date,kind:l.kind,source:'Extra workout',name:l.name||l.kind,distance:n(l.distanceKm),minutes:n(l.durationMinutes),moving:n(l.movingMinutes),rpe:n(l.rpe),terrain:l.terrain||'',elevation:n(l.elevationM),type:l.terrain==='treadmill'?'VirtualRun':l.terrain==='trail'?'TrailRun':'Run',exercises:l.exercises||{},stravaId:l.stravaActivityId||null});}
   return out.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
@@ -91,7 +92,7 @@
  }
  function planOn(date){
   if(!validDate(date))return null;const offset=days('2026-10-05',date);if(offset<0||offset>=77)return null;const d=offset%7;
-  const original={week:Math.floor(offset/7)+1,day:d,kind:[1,4,6].includes(d)?'run':[2,5].includes(d)?'strength':'recovery',name:nameFor(d)};
+  const original=trainingPlanFor(Math.floor(offset/7)+1,d);
   // Past calendar entries stay historical. Future labels use the same derived plan as Today.
   const adaptive=date>=iso()?window.strydeScheduleModel?.build(state,records(state,window.strydeStravaSnapshot?.().rows||[]),iso()).days[date]:null;
   return adaptive&&!['started','completed'].includes(adaptive.type)?{...original,...adaptive}:original;

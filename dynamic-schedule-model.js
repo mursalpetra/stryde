@@ -11,7 +11,8 @@
   const kind = type => ['upper','lower'].includes(type)?'strength':['easy','long'].includes(type)?'run':'recovery';
   const keyFor = date => {const n=P.days(START,date);return `${Math.floor(n/7)+1}-${((n%7)+7)%7}`;};
   const weekStart = date => P.add(date,-((new Date(date+'T12:00:00Z').getUTCDay()+6)%7));
-  const base = date => TYPES[((P.days(START,date)%7)+7)%7];
+  const base = date => trainingPlanOn(date).type;
+  const unavailable = date => trainingPlanOn(date).protectedRecovery;
   function muscleGroups(row) {
     if(row.kind==='run')return ['lower'];
     if(row.kind!=='strength')return [];
@@ -89,7 +90,7 @@
     const activeLegacy=Object.entries(s.logs||{}).find(([,l])=>l.status!=='done'&&(l.status==='in_progress'||['running','paused'].includes(l.timing?.state)));
     const from=today<START?START:today;if(from>END)return {days,changes,warnings:['The original training block has ended. Review your next block; no race readiness is assumed.']};
     for(let d=from;d<=END;d=P.add(d,1)){
-      days[d]=day('recovery',d,'Recovery space is protected. Missed sessions are not carried forward.');
+      days[d]=day('recovery',d,unavailable(d)?'Tuesday / Friday: protected recovery because you are unavailable for your morning workout.':'Recovery space is protected. Missed sessions are not carried forward.',{protectedRecovery:unavailable(d)});
       const log=s.logs?.[keyFor(d)],done=actual.filter(r=>r.date===d);
       if(done.length)days[d]=day('completed',d,'Recorded activity is preserved; the remaining plan adapts around it.',{activities:done,kind:done[0].kind});
       else if(log&&log.status!=='done'&&(log.status==='in_progress'||log.timing||log.started_at||Object.keys(log.exercises||{}).length)){
@@ -115,16 +116,18 @@
       const weekCap=restart?3:5;
       if(restart)warnings.push('A lighter restart week is limited to three training days after the quiet week you confirmed. Unused sessions are dropped, not made up.');
       const count={run:recorded.filter(r=>r.kind==='run').length,upper:0,lower:0};
-      for(const d of Object.keys(days).filter(d=>d>=start&&d<=end&&days[d].type==='started')){const legacyDay=Number(days[d].legacyKey?.split('-')[1]),t=days[d].adaptiveId?activeAdaptive?.choice?.type:TYPES[legacyDay]||base(d);if(['easy','long'].includes(t))count.run++;else if(t==='upper'||t==='lower')count[t]++;}
+      for(const d of Object.keys(days).filter(d=>d>=start&&d<=end&&days[d].type==='started')){const legacyDay=Number(days[d].legacyKey?.split('-')[1]),t=days[d].adaptiveId?activeAdaptive?.choice?.type:base(d);if(['easy','long'].includes(t))count.run++;else if(t==='upper'||t==='lower')count[t]++;}
       for(const r of recorded.filter(r=>r.kind==='strength'))for(const g of r.groups)count[g]++;
       const candidates=[];
       if(count.run<3)candidates.push({type:'long',preferred:P.add(start,6)});
       if(!count.lower)candidates.push({type:'lower',preferred:P.add(start,2)});
       if(!count.upper)candidates.push({type:'upper',preferred:P.add(start,5)});
-      for(let n=count.run;n<2;n++)candidates.push({type:'easy',preferred:P.add(start,n===0?1:4)});
+      const preferredEasy=start>=TRAINING_AVAILABILITY_FROM?[0,3]:[1,4];
+      for(let n=count.run;n<2;n++)candidates.push({type:'easy',preferred:P.add(start,preferredEasy[n===0?0:1])});
       for(const candidate of candidates){
         const type=candidate.type;
         const dates=Object.keys(days).filter(d=>d>=start&&d<=end&&days[d].type==='recovery'&&d>=today)
+          .filter(d=>!unavailable(d))
           .filter(d=>!(d===today&&base(d)==='recovery')) // Keep today's planned rest until the user chooses.
           .filter(d=>!(d===today&&blocked(type,check)))
           .filter(d=>!(race&&P.days(d,race.date)>=0&&P.days(d,race.date)<=2))
@@ -147,6 +150,7 @@
   function options(s={},rows=[],today=P.iso(),input) {
     const c=readiness(s,today,input),actual=actuals(rows,today),rest=day('rest',today,'Rest is a successful choice. No missed training needs to be made up.',{id:'rest'}),choices=[rest],warnings=[];
     if(!P.validDate(today)||today<START||today>END)return {choices,reason:'This training block is not active. Review your next block before choosing a new workout. An unfinished saved workout can still be reviewed.',warnings};
+    if(unavailable(today))return {choices,reason:'Tuesday and Friday are protected recovery days. No morning workout is scheduled. You can still log an activity you already did without changing this plan.',warnings};
     if(c.comfort!=='comfortable'||c.energy===null||c.minutes===null||c.minutes<10||!c.historyComplete||c.rest){
       return {choices,reason:c.comfort==='pain'?'Pause exercise for pain or other symptoms. Seek appropriate advice before resuming.':!c.historyComplete?'Sync or add missing workouts, then confirm your recent activity so the recommendation does not repeat an unknown muscle load.':'Rest or gentle comfortable movement today; a short readiness check is needed before an exercise option.',warnings};
     }

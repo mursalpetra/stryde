@@ -6,7 +6,7 @@
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const number=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?Number(v):null;
  let cache=null,pending=null,error='',lastAttempt=0;try{cache=JSON.parse(localStorage.getItem(CACHE)||'null')}catch{}
- const context=()=>typeof view!=='undefined'&&view==='session'&&[1,4,6].includes(sessionDay)?window.strydeRunDay?.context():null;
+ const context=()=>typeof view!=='undefined'&&view==='session'&&sessionKindFor(sessionDay)==='run'?window.strydeRunDay?.context():null;
  function condition(code){if(code===0)return 'Clear';if([1,2].includes(code))return 'Partly cloudy';if(code===3)return 'Overcast';if([45,48].includes(code))return 'Fog';if(code>=95)return 'Thunderstorm risk';if([71,73,75,77,85,86].includes(code))return 'Snow';if(code>=51)return 'Rain / showers';return 'Forecast';}
  function summary(c,data=cache){
   if(!Array.isArray(data?.hourly?.time)||!Number.isFinite(data.received)||!c)return null;

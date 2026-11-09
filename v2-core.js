@@ -30,7 +30,30 @@ const root=document.getElementById('root'),nav=document.getElementById('nav');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const save=()=>{localStorage.setItem('stryde-v1',JSON.stringify(state));window.strydeCloudSave?.(state)};
 const dateFor=(w,d)=>new Date(2026,9,5+(w-1)*7+d,12),key=(d,w=state.week)=>w+'-'+d,log=d=>state.logs[key(d)]||{};
-const nameFor=d=>['Recovery','Easy Run','Glutes & Legs','Recovery','Easy Run','Back, Shoulders & Arms','Long Run'][d],isGym=d=>d===2||d===5,idsFor=d=>d===2?[0,1,2,3]:d===5?[4,5,6,7]:[];
+// Availability change is date-effective; historical plans and actual logs are never rewritten.
+const TRAINING_AVAILABILITY_FROM='2026-11-09';
+function trainingPlanFor(w,d){
+ const dt=new Date(Date.UTC(2026,9,5+(Number(w)-1)*7+Number(d))),date=dt.toISOString().slice(0,10);
+ const updated=date>=TRAINING_AVAILABILITY_FROM;
+ const types=updated?['easy','recovery','lower','easy','recovery','upper','long']:['recovery','easy','lower','recovery','easy','upper','long'];
+ const type=types[d],kind=['easy','long'].includes(type)?'run':['lower','upper'].includes(type)?'strength':'recovery';
+ const runIndex=type==='long'?2:type==='easy'?(d===(updated?0:1)?0:1):null;
+ return {date,week:Number(w),day:Number(d),type,kind,name:{easy:'Easy Run',long:'Long Run',lower:'Glutes & Legs',upper:'Back, Shoulders & Arms',recovery:'Recovery'}[type]||'Recovery',ids:type==='lower'?[0,1,2,3]:type==='upper'?[4,5,6,7]:[],km:runIndex===null?null:WEEKS[w-1]?.[runIndex]??null,runIndex,protectedRecovery:updated&&[1,4].includes(Number(d))};
+}
+function trainingPlanOn(date){
+ const days=Math.round((Date.parse(date+'T12:00:00Z')-Date.parse('2026-10-05T12:00:00Z'))/86400000);
+ return trainingPlanFor(Math.floor(days/7)+1,((days%7)+7)%7);
+}
+function sessionKindFor(d,w=state.week){
+ const entry=state.logs?.[key(d,w)];
+ if(entry&&(entry.status==='done'||entry.status==='in_progress'||entry.timing||entry.prescriptionSnapshot)){
+  if(['run','strength'].includes(entry.session_type))return entry.session_type;
+  if(Object.keys(entry.exercises||{}).length)return 'strength';
+  if(Number(entry.actual)>0)return 'run';
+ }
+ return trainingPlanFor(w,d).kind;
+}
+const nameFor=(d,w=state.week)=>trainingPlanFor(w,d).name,isGym=(d,w=state.week)=>sessionKindFor(d,w)==='strength',idsFor=d=>d===2?[0,1,2,3]:d===5?[4,5,6,7]:[];
 const fmt=d=>d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
 function history(i){return Object.entries(state.logs).filter(([k,v])=>v.status==='done'&&v.exercises?.[i]&&Number(v.exercises[i].weight)>0).map(([k,v])=>({week:Number(k.split('-')[0]),day:Number(k.split('-')[1]),...v.exercises[i]})).sort((a,b)=>b.week-a.week||b.day-a.day)}
 function lastLift(i){return history(i)[0]||null}

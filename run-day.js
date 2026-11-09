@@ -6,7 +6,7 @@
   'use strict';
   if (window.strydeRunDay) return;
   const ROOT = document.getElementById('root');
-  const RUN_DAYS = [1, 4, 6];
+  const isRunDay = (d,w=state.week) => Number.isInteger(d) && sessionKindFor(d,w)==='run';
   const SOURCES = [
     ['Fuel during endurance exercise · Australian Institute of Sport', 'https://www.ausport.gov.au/ais/nutrition/supplements/group_a/sports-foods2/sports-drink/how-and-when-do-i-use-it'],
     ['Food and timing · Mayo Clinic', 'https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/exercise/art-20045506'],
@@ -18,7 +18,7 @@
   const escape = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const valid = (v, min, max) => v !== '' && v != null && Number.isFinite(Number(v)) && Number(v) >= min && Number(v) <= max;
   const dateId = date => [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-');
-  const runView = () => typeof view !== 'undefined' && view === 'session' && RUN_DAYS.includes(sessionDay);
+  const runView = () => typeof view !== 'undefined' && view === 'session' && isRunDay(sessionDay);
   const shortTime = mins => mins < 60 ? `${mins} min` : `${Math.floor(mins/60)}h ${String(mins%60).padStart(2,'0')}m`;
   const stamp = date => date.toLocaleDateString([], {weekday:'long',month:'short',day:'numeric'});
   const metric = v => Number.isInteger(v) ? String(v) : String(Math.round(v*10)/10);
@@ -28,7 +28,7 @@
     const before = dateFor(w,d).getTime();
     const candidates = Object.entries(state.logs || {}).flatMap(([key, l]) => {
       const match = /^(\d{1,2})-([0-6])$/.exec(key);
-      if (!match || l?.status !== 'done' || !RUN_DAYS.includes(Number(match[2]))) return [];
+      if (!match || l?.status !== 'done' || !isRunDay(Number(match[2]),Number(match[1]))) return [];
       const time = dateFor(Number(match[1]), Number(match[2])).getTime();
       if (time >= before || before-time > 90*86400000) return [];
       const minutes = valid(l.elapsed_seconds,60,43200) ? Number(l.elapsed_seconds)/60 : Number(l.minutes);
@@ -43,10 +43,11 @@
     return {pace,source:`Estimated from ${values.length} earlier saved run${values.length===1?'':'s'} in STRYDE. Not a pace target; allow for walk breaks and conditions.`};
   }
   function context(w = state.week, d = sessionDay) {
-    if (!RUN_DAYS.includes(d) || !WEEKS[w-1]) return null;
+    if (!isRunDay(d,w) || !WEEKS[w-1]) return null;
     const date = dateFor(w,d), id = dateId(date);
     const settings = state.runPreparation?.[id] || {};
-    const km = Number(WEEKS[w-1][d===1?0:d===4?1:2]);
+    const plan=trainingPlanFor(w,d);
+    const km=Number(plan.km??state.logs?.[`${w}-${d}`]?.actual??0);
     const estimate = paceEstimate(w,d);
     const minutes = valid(settings.minutes,5,600) ? Math.round(Number(settings.minutes)) : Math.max(5,Math.round(km*estimate.pace));
     const isRace = id === RACE && d===6 && km>=20;
@@ -57,7 +58,7 @@
     const startIn = ['soon','oneTwo','threeFour'].includes(settings.startIn) ? settings.startIn : 'soon';
     const weather = ['unknown','mild','hot'].includes(settings.weather) ? settings.weather : 'unknown';
     const terrain = ['flat','hills','treadmill'].includes(settings.terrain) ? settings.terrain : 'flat';
-    return {w,d,date,id,km,minutes,isRace,taper,cutback,startIn,weather,terrain,
+    return {w,d,date,id,km,minutes,isRace,taper,cutback,startIn,weather,terrain,runIndex:plan.runIndex,
       type:isRace?'Half-marathon race':d===6?'Long easy run':taper?'Easy taper run':'Easy run',
       estimateSource:valid(settings.minutes,5,600)?'Your expected run / run-walk time, including stops. Separate from the result you record.':estimate.source};
   }
@@ -67,7 +68,7 @@
       : c.cutback ? `A shorter ${metric(c.km)} km long run this week. Let the lighter load do its job; do not add distance to catch up.`
       : c.taper ? `Keep this ${metric(c.km)} km session comfortable. The goal is to arrive at the race rested, not gain last-minute fitness.`
       : c.d===6 ? `Build time on your feet across ${metric(c.km)} km. Keep it easy rather than chasing a faster pace.`
-      : c.d===4 ? `A comfortable ${metric(c.km)} km run before Sunday's long run. Finish with energy left, rather than turning today into a hard workout.`
+      : c.runIndex===1 ? `A comfortable ${metric(c.km)} km run before Sunday's long run. Finish with energy left, rather than turning today into a hard workout.`
       : `Settle back into running with ${metric(c.km)} km at easy effort. Save enough energy for the next scheduled strength session.`;
     let before = c.startIn==='soon'
       ? 'Starting within an hour: choose a small familiar carbohydrate snack if needed, such as a banana or one slice of toast with jam. Avoid a large meal right before leaving.'
@@ -97,10 +98,12 @@
     const recovery = longFuel
       ? 'After you finish, walk gently to cool down, then have a carbohydrate-and-protein meal or snack within the next couple of hours. Examples: yogurt or soy yogurt with cereal and fruit; eggs on toast; or rice with chicken or tofu. Rehydrate gradually.'
       : 'Finish with a gentle cool-down walk. Your next normal meal with carbohydrate and protein is usually enough; for example eggs on toast or rice and tofu. No special recovery supplement is required.';
+    const tomorrow=new Date(c.date);tomorrow.setDate(tomorrow.getDate()+1);
+    const nextPlan=trainingPlanOn(dateId(tomorrow));
     const next = c.isRace ? 'After the race: recovery first. Review the result before setting your next milestone; do not automatically resume a hard session.'
-      : c.d===6 ? 'Monday is scheduled recovery. Do not use it to make up missed distance.'
-      : c.d===4 ? 'Sunday is the long run. Today should not leave you unusually exhausted for it.'
-      : 'The next scheduled session is Glutes & Legs. If soreness changes your gait, recover and reassess instead of forcing the plan.';
+      : nextPlan.protectedRecovery ? 'Tomorrow is a protected recovery day. No morning workout is scheduled and no missed session will be moved into it.'
+      : nextPlan.kind==='recovery' ? 'Tomorrow is scheduled recovery. Do not use it to make up missed distance.'
+      : 'Next in your baseline plan: '+nextPlan.name+'. Check the adaptive plan and how you feel first; extra recovery can replace a session, not create catch-up work.';
     // A clearly labelled example, based on packet labels, not an asserted nutrient value for every gel.
     const portions = longFuel ? Math.ceil((c.minutes/60*30)/25) : 0;
     const fuelTimes = Array.from({length:portions},(_,i)=>Math.round((i+.5)*c.minutes/portions));

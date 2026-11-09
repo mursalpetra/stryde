@@ -104,6 +104,11 @@
       if(focus)focus.before(card);else {const hero=ROOT.querySelector('.hero');if(hero)hero.after(card);else ROOT.append(card);}
     }
     if(!focus)return;
+    if(date>=today()&&trainingPlanOn(date).protectedRecovery&&!activeLegacy(date)&&day?.type!=='completed'&&day?.type!=='started'){
+      focus.setAttribute('data-adaptive-focus','');focus.className='card adaptive-focus';
+      focus.innerHTML=`<div class="eyebrow">${date===today()?'TODAY':'SELECTED DAY'} · PROTECTED RECOVERY</div><h1>Recovery day</h1><p>Tuesday and Friday are off: you are unavailable for your morning workout.</p><p>No workout will be automatically scheduled or moved here. You can still record an activity you actually did.</p>`;
+      focus.insertAdjacentHTML('afterend',weekly(plan,date));return;
+    }
     if(date<today()||activeLegacy(date)||!day) {
       if(focus.hasAttribute('data-adaptive-focus'))return;
       if(date>=today())focus.insertAdjacentHTML('afterend',weekly(plan,date));
