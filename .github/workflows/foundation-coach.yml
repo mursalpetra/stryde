@@ -1,0 +1,49 @@
+name: Publish STRYDE foundation coach
+on:
+  push:
+    branches: [main]
+    paths: ['tools/install-foundation-coach.py', '.github/workflows/foundation-coach.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stryde-foundation-coach
+  cancel-in-progress: false
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Verify tested new source files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          expected={
+            'foundation-program.js':'47fb78b6aff3803d969d877730af26f3b095aa4dae95d66422d3a9619ca79910',
+            'foundation-coach.js':'c51b84c7d504dc39005b7fd84f7a92f92817d3d8c4ae2f4ee736993e2143dd68',
+            'foundation-coach.css':'513bad0dab861c1667ff4512c51f60b93ce98e1e98eff7124fbaf1eea119549a',
+            'tests/test_foundation_program.mjs':'a4e08f7f25afcd4ead341584c17b57ecbb9f5bfa6f97d96f92a01c24464744ca',
+            'tools/install-foundation-coach.py':'9e1344f61f55e31bf52209d57462baf6c32ebdb2e19358dfb115588a8619bcaf',
+            'FOUNDATION-COACH.md':'8c461d3425d97dfb60e5f1d262698080c9d23343e7df26f9e6b3f3d9b477628b'
+          }
+          for name,digest in expected.items():
+            assert hashlib.sha256(Path(name).read_bytes()).hexdigest()==digest, name+' differs from tested source'
+          PY
+      - name: Apply exact-source integration
+        run: python tools/install-foundation-coach.py
+      - name: Verify syntax, history preservation and coaching decisions
+        run: |
+          for file in *.js; do node --check "$file"; done
+          node --test tests/test_account_model.mjs tests/test_dynamic_schedule.mjs tests/test_attendance_availability.mjs tests/test_monthly_tally.mjs tests/test_foundation_program.mjs
+          git diff --check
+      - name: Commit only verified application changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add account-cloud.js day-workflows.js dynamic-schedule-model.js dynamic-schedule-ui.js goal-journal.js index.html monthly-tally.js progress-model.js run-day.js training-hub.js v2-actions.js v2-core.js v2-views.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Activate strength-first foundation, retire December race and add homepage monthly dashboard'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
