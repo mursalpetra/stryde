@@ -18,7 +18,7 @@
     const target = {run:0,strength:0}, covered = [];
     for (let date = first; date <= last; date = P.add(date,1)) {
       const plan = typeof trainingPlanOn === 'function' ? trainingPlanOn(date) : null;
-      if (!plan || !Number.isInteger(plan.week) || plan.week < 1 || typeof WEEKS === 'undefined' || plan.week > WEEKS.length) continue;
+      if (!plan || !Number.isInteger(plan.week) || plan.week < 1 || typeof WEEKS === 'undefined' || (plan.week > WEEKS.length && !plan.foundation)) continue;
       covered.push(date);
       if (plan.kind === 'run' || plan.kind === 'strength') target[plan.kind]++;
     }
@@ -102,7 +102,7 @@
     if (expanded) panel.querySelector('details').open=true;
   }
 
-  window.strydeMonthlyTally={calculate,mount};
+  window.strydeMonthlyTally={calculate,mount,sourceNote,markup};
   const root=document.getElementById('root');
   if(!root)return;
   let scheduled=false;

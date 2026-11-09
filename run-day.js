@@ -43,33 +43,37 @@
     return {pace,source:`Estimated from ${values.length} earlier saved run${values.length===1?'':'s'} in STRYDE. Not a pace target; allow for walk breaks and conditions.`};
   }
   function context(w = state.week, d = sessionDay) {
-    if (!isRunDay(d,w) || !WEEKS[w-1]) return null;
+    if (!isRunDay(d,w)) return null;
     const date = dateFor(w,d), id = dateId(date);
     const settings = state.runPreparation?.[id] || {};
     const plan=trainingPlanFor(w,d);
-    const km=Number(plan.km??state.logs?.[`${w}-${d}`]?.actual??0);
+    const foundation=Boolean(plan.foundation),pRows=window.strydeProgressModel.records(state,window.strydeStravaSnapshot?.().rows||[]);
+    const foundationDose=foundation?window.strydeFoundation.runDose(id,pRows,state):null;
+    const km=foundation?0:Number(plan.km??state.logs?.[`${w}-${d}`]?.actual??0);
     const estimate = paceEstimate(w,d);
-    const minutes = valid(settings.minutes,5,600) ? Math.round(Number(settings.minutes)) : Math.max(5,Math.round(km*estimate.pace));
-    const isRace = id === RACE && d===6 && km>=20;
+    const available=state.adaptiveSchedule?.checkins?.[id]?.minutes;
+    const minutes = valid(settings.minutes,5,600) ? Math.round(Number(settings.minutes)) : foundation?Math.min(foundationDose.minutes,valid(available,10,90)?Number(available):90):Math.max(5,Math.round(km*estimate.pace));
+    const isRace = !foundation && id === RACE && d===6 && km>=20;
     const daysToRace = Math.round((new Date(RACE+'T12:00:00')-date)/86400000);
-    const taper = !isRace && daysToRace > 0 && daysToRace <= 13;
+    const taper = !foundation && !isRace && daysToRace > 0 && daysToRace <= 13;
     const previousLong = w>1 ? Number(WEEKS[w-2]?.[2]) : null;
-    const cutback = !isRace && d===6 && previousLong && km<previousLong;
+    const cutback = !foundation && !isRace && d===6 && previousLong && km<previousLong;
     const startIn = ['soon','oneTwo','threeFour'].includes(settings.startIn) ? settings.startIn : 'soon';
     const weather = ['unknown','mild','hot'].includes(settings.weather) ? settings.weather : 'unknown';
     const terrain = ['flat','hills','treadmill'].includes(settings.terrain) ? settings.terrain : 'flat';
-    return {w,d,date,id,km,minutes,isRace,taper,cutback,startIn,weather,terrain,runIndex:plan.runIndex,
-      type:isRace?'Half-marathon race':d===6?'Long easy run':taper?'Easy taper run':'Easy run',
-      estimateSource:valid(settings.minutes,5,600)?'Your expected run / run-walk time, including stops. Separate from the result you record.':estimate.source};
+    return {w,d,date,id,km,minutes,foundation,foundationDose,isRace,taper,cutback,startIn,weather,terrain,runIndex:plan.runIndex,
+      type:foundation?plan.name:isRace?'Half-marathon race':d===6?'Long easy run':taper?'Easy taper run':'Easy run',
+      estimateSource:valid(settings.minutes,5,600)?'Your expected run / run-walk time, including stops. Separate from the result you record.':foundation?foundationDose.reason:estimate.source};
   }
   function guidance(c) {
     const longFuel = c.minutes >= 90, medium = c.minutes>=60 && !longFuel;
-    let purpose = c.isRace ? `Complete your ${metric(c.km)} km milestone with the run/walk and fueling strategy you rehearsed. Today is not the time to test new food or equipment.`
-      : c.cutback ? `A shorter ${metric(c.km)} km long run this week. Let the lighter load do its job; do not add distance to catch up.`
-      : c.taper ? `Keep this ${metric(c.km)} km session comfortable. The goal is to arrive at the race rested, not gain last-minute fitness.`
-      : c.d===6 ? `Build time on your feet across ${metric(c.km)} km. Keep it easy rather than chasing a faster pace.`
-      : c.runIndex===1 ? `A comfortable ${metric(c.km)} km run before Sunday's long run. Finish with energy left, rather than turning today into a hard workout.`
-      : `Settle back into running with ${metric(c.km)} km at easy effort. Save enough energy for the next scheduled strength session.`;
+    let purpose = c.isRace ? `Complete your ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'} milestone with the run/walk and fueling strategy you rehearsed. Today is not the time to test new food or equipment.`
+      : c.cutback ? `A shorter ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'} long run this week. Let the lighter load do its job; do not add distance to catch up.`
+      : c.taper ? `Keep this ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'} session comfortable. The goal is to arrive at the race rested, not gain last-minute fitness.`
+      : c.d===6 ? `Build time on your feet across ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'}. Keep it easy rather than chasing a faster pace.`
+      : c.runIndex===1 ? `A comfortable ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'} run before Sunday's long run. Finish with energy left, rather than turning today into a hard workout.`
+      : `Settle back into running with ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'} at easy effort. Save enough energy for the next scheduled strength session.`;
+    if(c.foundation)purpose=trainingPlanOn(c.id).reason+' '+c.foundationDose.reason;
     let before = c.startIn==='soon'
       ? 'Starting within an hour: choose a small familiar carbohydrate snack if needed, such as a banana or one slice of toast with jam. Avoid a large meal right before leaving.'
       : c.startIn==='oneTwo'
@@ -100,7 +104,7 @@
       : 'Finish with a gentle cool-down walk. Your next normal meal with carbohydrate and protein is usually enough; for example eggs on toast or rice and tofu. No special recovery supplement is required.';
     const tomorrow=new Date(c.date);tomorrow.setDate(tomorrow.getDate()+1);
     const nextPlan=trainingPlanOn(dateId(tomorrow));
-    const next = c.isRace ? 'After the race: recovery first. Review the result before setting your next milestone; do not automatically resume a hard session.'
+    const next = c.foundation ? 'Next planned session: '+trainingPlanOn(window.strydeProgressModel.add(c.id,1)).name+'. Actual training and recovery can adjust the dose; no catch-up workout is required.' : c.isRace ? 'After the race: recovery first. Review the result before setting your next milestone; do not automatically resume a hard session.'
       : nextPlan.protectedRecovery ? 'Tomorrow is a protected recovery day. No morning workout is scheduled and no missed session will be moved into it.'
       : nextPlan.kind==='recovery' ? 'Tomorrow is scheduled recovery. Do not use it to make up missed distance.'
       : 'Next in your baseline plan: '+nextPlan.name+'. Check the adaptive plan and how you feel first; extra recovery can replace a session, not create catch-up work.';
@@ -113,7 +117,7 @@
   }
   const icon = '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
   function heading(c) {
-    return `<section class="run-day-hero"><div class="eyebrow">${escape(stamp(c.date))} · WEEK ${c.w}</div><h1>${escape(c.type)}</h1><div class="run-day-stats"><div><small>Planned distance</small><strong>${metric(c.km)} <em>km</em></strong></div><div><small>Expected run time</small><strong>~${c.minutes} <em>min</em></strong></div></div><p class="run-day-estimate">${escape(c.estimateSource)}</p></section>`;
+    return `<section class="run-day-hero"><div class="eyebrow">${escape(stamp(c.date))} · WEEK ${c.w}</div><h1>${escape(c.type)}</h1><div class="run-day-stats"><div><small>${c.foundation?'Session focus':'Planned distance'}</small><strong>${c.foundation?'Easy':metric(c.km)} <em>${c.foundation?'effort':'km'}</em></strong></div><div><small>Expected run time</small><strong>~${c.minutes} <em>min</em></strong></div></div><p class="run-day-estimate">${escape(c.estimateSource)}</p></section>`;
   }
   function prep(c) {
     const option = (value,label,current) => `<option value="${value}" ${current===value?'selected':''}>${label}</option>`;
@@ -140,8 +144,8 @@
     const top=`<div class="backbar"><button type="button" onclick="go('today')" aria-label="Back to Today">‹</button><h3>${escape(c.type)}</h3><button type="button" data-run-day-action="account" aria-label="Account">⋯</button></div><div class="tabs run-day-tabs" role="tablist" aria-label="Run details">${tabs.map(([t,n])=>`<button type="button" role="tab" aria-selected="${t===active}" class="${t===active?'active':''}" onclick="setSessionTab('${t}')">${n}</button>`).join('')}</div>`;
     let body=heading(c);
     if(active==='workout') body+=`<div class="run-day-purpose"><strong>Your focus</strong><p>${escape(g.purpose)}</p></div>${launch(c)}${g.longFuel?fuelCard(c,g):`<div class="run-short-note"><h3>For your ~${c.minutes}-minute run</h3><p>${escape(g.during)}</p></div>`}<button type="button" class="run-day-tip-link" onclick="setSessionTab('tips')">What to eat, drink and do for this run ${icon}</button>${prep(c)}${afterRun()}${manual(c)}`;
-    else if(active==='tips') body+=`<p class="run-day-specific">Made for ${escape(stamp(c.date))}: ${metric(c.km)} km, about ${shortTime(c.minutes)}. ${escape(g.purpose)}</p>${prep(c)}${tipCard('01','Before you leave',g.before)}${tipCard('02','Warm up for this run','Walk easily for 5 minutes, then start running gently. The expected run time above excludes your separate warm-up and cool-down.')}${tipCard('03',c.isRace?'Your race approach':'How to run today',g.pacing)}${g.longFuel?fuelCard(c,g):tipCard('04','Fuel during this run',g.during)}${tipCard('05','Water and conditions',g.water)}${tipCard('06','After this run',g.recovery)}<div class="run-next-session"><strong>What comes next</strong><p>${escape(g.next)}</p></div><div class="run-day-pack"><strong>Bring today</strong><p>${escape(g.pack)}</p></div>${c.weather==='unknown'?'<p class="muted">Weather has not been checked. In heat or humidity, slow down, plan water access and shorten the run if needed.</p>':''}<p class="run-day-safety">Stop if you develop sharp or worsening pain, dizziness, chest pain, or unusual breathlessness. Seek urgent help for severe or persistent symptoms.</p>${sources()}${launch(c)}`;
-    else body+=`${afterRun()}<div class="run-day-purpose"><h3>Planned is not completed</h3><p>Strava contains the recorded distance and times. Use View my Strava runs to see the imported history; a planned ${metric(c.km)} km run is not logged as completed until you actually record it.</p></div>`;
+    else if(active==='tips') body+=`<p class="run-day-specific">Made for ${escape(stamp(c.date))}: ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'}, about ${shortTime(c.minutes)}. ${escape(g.purpose)}</p>${prep(c)}${tipCard('01','Before you leave',g.before)}${tipCard('02','Warm up for this run','Walk easily for 5 minutes, then start running gently. The expected run time above excludes your separate warm-up and cool-down.')}${tipCard('03',c.isRace?'Your race approach':'How to run today',g.pacing)}${g.longFuel?fuelCard(c,g):tipCard('04','Fuel during this run',g.during)}${tipCard('05','Water and conditions',g.water)}${tipCard('06','After this run',g.recovery)}<div class="run-next-session"><strong>What comes next</strong><p>${escape(g.next)}</p></div><div class="run-day-pack"><strong>Bring today</strong><p>${escape(g.pack)}</p></div>${c.weather==='unknown'?'<p class="muted">Weather has not been checked. In heat or humidity, slow down, plan water access and shorten the run if needed.</p>':''}<p class="run-day-safety">Stop if you develop sharp or worsening pain, dizziness, chest pain, or unusual breathlessness. Seek urgent help for severe or persistent symptoms.</p>${sources()}${launch(c)}`;
+    else body+=`${afterRun()}<div class="run-day-purpose"><h3>Planned is not completed</h3><p>Strava contains the recorded distance and times. Use View my Strava runs to see the imported history; a planned ${c.km>0?metric(c.km)+' km':'~'+c.minutes+' minutes'} run is not logged as completed until you actually record it.</p></div>`;
     return top+`<article class="run-day" data-stryde-run-day="${c.id}" data-run-tab="${active}">${body}<p class="run-prep-saved" role="status">${escape(preparedNotice)}</p></article>`;
   }
   function draw() {

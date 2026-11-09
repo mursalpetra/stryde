@@ -91,7 +91,7 @@
   return {rows:inRange,runs,lifts,runCount:runs.length,liftCount:lifts.length,km:runs.reduce((s,r)=>s+(r.distance||0),0),minutes:inRange.reduce((s,r)=>s+(r.minutes||0),0),changes,loadWinner,performance:changes.length>=2?median(changes.map(r=>r.output)):null,runTrend:runChange(runs),duplicates:duplicates(inRange)};
  }
  function planOn(date){
-  if(!validDate(date))return null;const offset=days('2026-10-05',date);if(offset<0||offset>=77)return null;const d=offset%7;
+  if(!validDate(date))return null;const offset=days('2026-10-05',date);if(offset<0||(offset>=77&&!window.strydeFoundation?.active(date)))return null;const d=offset%7;
   const original=trainingPlanFor(Math.floor(offset/7)+1,d);
   // Past calendar entries stay historical. Future labels use the same derived plan as Today.
   const adaptive=date>=iso()?window.strydeScheduleModel?.build(state,records(state,window.strydeStravaSnapshot?.().rows||[]),iso()).days[date]:null;

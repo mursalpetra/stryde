@@ -65,7 +65,8 @@
         .filter(key => !top || !transient.has(key)).map(key => [key, sorted(v[key])]));
       return v;
     }
-    return JSON.stringify(sorted(value || {}, true));
+    const normalized=copy(value||{});window.strydeFoundation?.migrate(normalized);
+    return JSON.stringify(sorted(normalized, true));
   }
   let client = null, user = null, initialized = false, ready = false;
   let syncStatus = 'Checking account…', epoch = 0, loading = false, saving = false;
@@ -257,7 +258,8 @@
       const remote = valid(data?.payload) && Object.keys(data.payload).length ? data.payload : null;
       const local = localData();
       const owner = store('localStorage', 'getItem', OWNER_KEY);
-      const lastSync = store('localStorage', 'getItem', fingerprintKey(uid));
+      const lastSyncRaw = store('localStorage', 'getItem', fingerprintKey(uid));
+      const parsedSync=parse(lastSyncRaw);const lastSync=parsedSync?signature(parsedSync):lastSyncRaw;
       const oldOwner = Boolean(owner && owner !== uid);
       const same = remote && signature(remote) === signature(local);
       if (oldOwner || (remote && local && !same && lastSync !== signature(local) && lastSync !== signature(remote))) {

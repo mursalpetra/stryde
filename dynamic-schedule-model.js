@@ -82,6 +82,7 @@
     return {km,minutes:20,reason:type==='long'?'Long-run progression is on hold until recent recorded running supports it. Choose a short, comfortable run/walk instead.':'Keep a conversational effort. Walk breaks are welcome; duration is a ceiling, not a target to force.'};
   }
   function build(s={},rows=[],today=P.iso()) {
+    if(window.strydeFoundation?.active(today))return window.strydeFoundation.build(s,rows,today,readiness);
     const days={},changes=[],warnings=[];
     if(!P.validDate(today))return {days,changes,warnings:['Today’s date is unavailable.']};
     const actual=actuals(rows,today),occupied=actual.slice(),check=readiness(s,today);
@@ -148,6 +149,7 @@
     return {days,changes,warnings};
   }
   function options(s={},rows=[],today=P.iso(),input) {
+    if(window.strydeFoundation?.active(today))return window.strydeFoundation.options(s,rows,today,readiness,input);
     const c=readiness(s,today,input),actual=actuals(rows,today),rest=day('rest',today,'Rest is a successful choice. No missed training needs to be made up.',{id:'rest'}),choices=[rest],warnings=[];
     if(!P.validDate(today)||today<START||today>END)return {choices,reason:'This training block is not active. Review your next block before choosing a new workout. An unfinished saved workout can still be reviewed.',warnings};
     if(unavailable(today))return {choices,reason:'Tuesday and Friday are protected recovery days. No morning workout is scheduled. You can still log an activity you already did without changing this plan.',warnings};

@@ -158,7 +158,7 @@
  });
  window.addEventListener('stryde-runs-changed',()=>{if(view==='progress'&&['overview','strength'].includes(tab))progress();else if(['today','plan'].includes(view))calendar();});
  window.addEventListener('stryde-account-change',()=>{close();requestAnimationFrame(()=>{if(view==='progress'&&tab!=='body')progress();else if(['today','plan'].includes(view))calendar();});});
- window.strydeTrainingHub={progress,extra,calendar,all,dayDetail,focusCalendar:date=>{calendarMonth=date.slice(0,7);},setTab:t=>{tab=t;window.go('progress')}};
+ window.strydeTrainingHub={progress,extra,calendar,all,dayDetail,setCalendarMode:mode=>{calendarMode=mode==='month'?'month':'week';},focusCalendar:date=>{calendarMonth=date.slice(0,7);},setTab:t=>{tab=t;window.go('progress')}};
  if(view==='progress')progress();else calendar();
 })();
 

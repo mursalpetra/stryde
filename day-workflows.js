@@ -25,7 +25,7 @@
   function calendarPoint(date){
     if(!P.validDate(date))return null;
     const n=P.days('2026-10-05',date),week=Math.floor(n/7)+1;
-    return {week,day:((n%7)+7)%7,inPlan:n>=0&&n<WEEKS.length*7};
+    return {week,day:((n%7)+7)%7,inPlan:n>=0&&(n<WEEKS.length*7||Boolean(window.strydeFoundation?.active(date)))};
   }
   function selectedDate(){
     if(outsideFocus)return outsideFocus;
@@ -67,7 +67,7 @@
     const point=calendarPoint(date);if(!point?.inPlan)return {name:'No scheduled session',detail:'Outside the dated training block.',point};
     const {week,day}=point,configured=trainingPlanFor(week,day),{kind,km}=configured;
     const entry=state.logs?.[`${week}-${day}`],snapshot=entry?.prescriptionSnapshot;
-    return {name:configured.name,kind,point,km,snapshot,detail:kind==='run'?`${fmt(km)} km planned`:kind==='strength'?`${configured.ids.length} planned exercises`:configured.protectedRecovery?'Protected recovery · morning unavailable':'Rest / recovery was scheduled'};
+    return {name:configured.name,kind,point,km,snapshot,detail:kind==='run'?(configured.foundation?'Easy, time-based conditioning':`${fmt(km)} km planned`):kind==='strength'?`${configured.ids.length} planned exercises`:configured.protectedRecovery?'Protected recovery · morning unavailable':'Rest / recovery was scheduled'};
   }
   function summary(date,compact=false){
     const plan=originalPlan(date),actual=getRows().filter(r=>r.date===date);
