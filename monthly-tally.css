@@ -1,0 +1,28 @@
+/* Calendar-only tally; no changes to logging, workout targets, or private storage. */
+.hub-month .month-tally{margin:17px 0 20px;padding:16px;border:1px solid #dce9e1;border-radius:16px;background:linear-gradient(145deg,#f3faf6,#fff);color:#1c2e25}
+.month-tally-kicker{font-size:10px;letter-spacing:1.1px;font-weight:750;color:#34674b;margin-bottom:9px}
+.month-tally-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.month-tally-number{display:flex;align-items:baseline;gap:9px;line-height:1.1;font-variant-numeric:tabular-nums}
+.month-tally-number>strong{font-size:43px;letter-spacing:-1.7px;color:#16744a;font-weight:800}
+.month-tally-number>span{font-size:27px;letter-spacing:-.6px;color:#6b7971}
+.month-tally-number b{font-weight:600}
+.month-tally-caption{display:block;font-size:11px;line-height:1.5;color:#536b5d;margin-top:5px}
+.month-tally-percent{border:1px solid #cee7d6;border-radius:99px;background:#e8f5ec;padding:7px 10px;color:#176b42;font-size:12px;font-weight:750;white-space:nowrap}
+.month-tally-progress{appearance:none;-webkit-appearance:none;display:block;width:100%;height:8px;border:0;border-radius:99px;overflow:hidden;background:#e0e9e3;margin:17px 0 6px;color:#229267}
+.month-tally-progress::-webkit-progress-bar{background:#e0e9e3;border-radius:99px}
+.month-tally-progress::-webkit-progress-value{background:#229267;border-radius:99px}
+.month-tally-progress::-moz-progress-bar{background:#229267;border-radius:99px}
+.hub-month .month-tally p{font-size:11px;line-height:1.55;color:#52635a;margin:9px 0}
+.hub-month .month-tally .month-tally-remaining{color:#216744;font-weight:650;margin:7px 0 14px}
+.month-tally-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;border-top:1px solid #dfe8e2;padding-top:13px;margin-top:14px}
+.month-tally-split>div>span{display:block;font-size:11px;color:#62756a;margin-bottom:5px}
+.month-tally-split strong{font-size:20px;font-weight:750;line-height:1.3;color:#234733}
+.month-tally-split small{font-size:10px;font-weight:450;color:#61756a;white-space:nowrap}
+.hub-month .month-tally .month-tally-attendance{margin:14px 0 10px;padding:11px 0 0;border-top:1px solid #e0e8e3;font-size:11px;line-height:1.6}
+.month-tally-attendance>strong{font-weight:650;color:#3d5c4a}
+.hub-month .month-tally .month-tally-note{font-size:10px;color:#707c76}
+.month-tally-method{margin-top:10px}
+.month-tally-method>summary{font-size:11px;color:#4d6558;cursor:pointer;min-height:34px;padding:8px 0;line-height:1.5}
+.month-tally-method>summary:focus-visible{outline:2px solid #229267;outline-offset:2px;border-radius:4px}
+.hub-month .month-tally .month-tally-method p{font-size:10px;line-height:1.65;color:#64756b;margin:5px 0 9px}
+@media(max-width:360px){.hub-month .month-tally{padding:13px 11px}.month-tally-number>strong{font-size:37px}.month-tally-number>span{font-size:24px}.month-tally-split{gap:7px}.month-tally-split small{font-size:9px}.month-tally-caption{font-size:10px}}
