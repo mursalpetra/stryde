@@ -1,0 +1,34 @@
+name: Install attendance and recovery availability
+on:
+  push:
+    branches: [main]
+    paths: ['tools/install-attendance-availability.mjs', '.github/workflows/attendance-availability.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stryde-attendance-availability
+  cancel-in-progress: false
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Apply guarded changes
+        run: node tools/install-attendance-availability.mjs
+      - name: Check browser script syntax
+        run: |
+          for f in account-cloud.js day-workflows.js v2-core.js v2-views.js progress-model.js run-day.js workout-timer-full.js run-weather.js dynamic-schedule-model.js dynamic-schedule-ui.js gym-attendance.js; do node --check "$f" || exit 1; done
+          git diff --check
+      - name: Verify old history, privacy, availability and saved sessions
+        run: node --test tests/test_attendance_availability.mjs tests/test_dynamic_schedule.mjs tests/test_account_model.mjs
+      - name: Commit only tested application changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add account-cloud.js day-workflows.js index.html v2-core.js v2-views.js progress-model.js run-day.js workout-timer-full.js run-weather.js dynamic-schedule-model.js dynamic-schedule-ui.js tests/test_attendance_availability.mjs
+          if ! git diff --cached --quiet; then
+            git commit -m 'Show private gym attendance; protect Tuesday and Friday recovery from Nov 9 without changing past records'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
