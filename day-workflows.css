@@ -1,0 +1,35 @@
+/* Compact, actual-date workflows. Existing workout and account styles stay scoped. */
+.day-summary header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.day-summary header h3{font-size:17px}.day-summary header button{font-size:12px;min-height:44px}
+.day-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.day-compare>div{padding:13px;background:#f7f8f9;border:1px solid #e5e8eb;border-radius:13px;min-width:0}
+.day-label{display:block;color:#717982;font-size:9px;letter-spacing:1.1px;font-weight:800;margin-bottom:8px}
+.day-compare strong{display:block;font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.day-compare small{display:block;font-size:11px;color:#737a80;line-height:1.5;margin-top:7px}
+.day-compare .day-done{background:#effaf3;border-color:#c5e8d1}.day-done strong{color:#146f40}
+.day-today-button{border:1px solid #ffcdb6;background:#fff1e9;color:#bc4009;padding:9px 14px;min-height:42px;border-radius:99px;font-size:12px;font-weight:800}
+.day-review-dialog{width:min(620px,calc(100vw - 20px));max-height:calc(100dvh - 32px);padding:19px;overflow:auto}
+.day-review-dialog .hub-dialog-top h2{font-size:21px;margin-top:6px}
+.day-actions{display:flex;gap:9px;flex-wrap:wrap;margin:15px 0 4px}.day-actions .btn{font-size:12px;min-height:44px;flex:1;min-width:130px}
+.day-actual-record{background:#fff;border:1px solid #e1e5e7;border-radius:14px;padding:15px;margin:14px 0}
+.day-actual-record header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.day-actual-record h3{font-size:16px;line-height:1.4;margin:0}.day-actual-record header small{display:block;font-size:11px;color:#7b838a;margin-top:5px}
+.day-record-check{background:#e8f7ed;color:#0d7840;border-radius:50%;width:26px;height:26px;display:grid;place-items:center;font-weight:800;flex-shrink:0}
+.day-actual-stats{font-size:15px;font-weight:700;color:#27353e;margin:11px 0}
+.day-lift-list{list-style:none;padding:0;margin:8px 0 0}.day-lift-list li{border-top:1px solid #eef0f1;padding:10px 0}.day-lift-list strong{display:block;font-size:13px}.day-lift-list span{display:block;font-size:12px;color:#626d75;margin-top:5px}.day-lift-list small{display:block;font-size:11px;color:#7e858a;line-height:1.5;margin-top:5px}
+.day-record-note{background:#f8f8f7;padding:10px;border-radius:8px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.day-strava-note,.day-empty{font-size:12px;line-height:1.6;color:#69737a}.day-snapshot{padding:12px 0;font-size:12px}.day-snapshot summary{font-weight:700;cursor:pointer;min-height:35px}
+.day-presets{padding:13px 0 17px}.day-presets>h3{font-size:18px}.day-presets>p{font-size:12px;color:#6b747c;line-height:1.6;margin:6px 0 12px}
+.day-presets>[role=group]{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.day-presets button{border:1px solid #e2e5e8;border-radius:13px;background:white;text-align:left;color:#242c32;padding:12px;font-size:12px;font-weight:750;min-height:65px;line-height:1.4}
+.day-presets button small{display:block;color:#77818a;font-size:10px;font-weight:500;margin-top:5px}
+.day-presets button[aria-pressed=true]{border-color:#fc4c02;background:#fff1e9;color:#b83c08}
+.day-presets [data-preset-status]:empty{display:none}.day-presets [data-preset-status]{padding:11px;border-radius:10px;background:#eff8f1;color:#276442;line-height:1.6;font-size:12px}
+.day-target-note{background:#fff4eb;padding:11px;border-radius:9px;font-size:11px;color:#9e511f;line-height:1.6}
+label.day-preset-confirm{display:flex;align-items:flex-start;gap:10px;padding:13px;border:1px solid #d2e5d8;border-radius:12px;background:#f5fbf6;font-size:12px;line-height:1.6;margin:14px 0}
+label.day-preset-confirm input{width:20px;height:20px;min-height:20px;flex-shrink:0;margin:3px 0 0;accent-color:#138551}
+.day-strava-lookup{border:1px solid #fad4c0;border-radius:15px;background:#fff7f2;padding:16px;margin:15px 0}
+.day-strava-lookup h3{font-size:18px;margin:8px 0}.day-strava-lookup p{font-size:12px;line-height:1.6}.day-strava-lookup .day-actions{margin-top:8px}
+.day-run-match{background:#fff;border:1px solid #ebded7;border-radius:11px;padding:13px;margin:10px 0}
+.day-run-match strong,.day-run-match span,.day-run-match small{display:block;line-height:1.5}.day-run-match strong{font-size:14px}.day-run-match span{font-size:13px;color:#464f55;margin-top:4px}.day-run-match small{font-size:11px;color:#798088;margin-top:4px}
+#hub-extra-form [hidden],.day-preset-confirm[hidden]{display:none!important}
+.hub-today-actions{flex-wrap:wrap}
+@media(max-width:360px){.day-review-dialog{padding:14px}.day-compare{gap:7px}.day-compare>div{padding:10px}.day-compare strong{font-size:12px}.day-presets button{padding:10px;font-size:11px}.day-actions .btn{min-width:110px}}
