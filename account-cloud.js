@@ -348,13 +348,14 @@
     queued = copy(payload);
     if (ready && user && !conflict) void flush();
   };
-  window.strydeStravaRequest = async (action, method = 'GET') => {
+  window.strydeStravaRequest = async (action, method = 'GET', parameters = null) => {
     if (!client) return { error: 'Sign-in service unavailable. Please reload STRYDE.' };
     const { data, error } = await client.auth.getSession();
     if (error || !data.session) { openAccount(); return { error: 'Log in to STRYDE, then connect Strava.' }; }
     try {
-      const response = await fetch(PROJECT + '/functions/v1/stryde-strava?action=' + encodeURIComponent(action), {
-        method, headers: { Authorization: 'Bearer ' + data.session.access_token, apikey: PUBLIC_KEY }
+      const response = await fetch(PROJECT + '/functions/v1/' + (['sync-day','activities-day'].includes(action) ? 'stryde-strava-day' : 'stryde-strava') + '?action=' + encodeURIComponent(action), {
+        method, headers: { Authorization: 'Bearer ' + data.session.access_token, apikey: PUBLIC_KEY, ...(parameters ? {'Content-Type':'application/json'} : {}) },
+        ...(parameters && method !== 'GET' ? {body:JSON.stringify(parameters)} : {}), signal:AbortSignal.timeout(30000)
       });
       return await response.json();
     } catch { return { error: 'Could not reach Strava sync. Check your connection and retry.' }; }

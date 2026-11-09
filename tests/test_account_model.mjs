@@ -43,7 +43,7 @@ test('coaching survives the same full-payload save path as legacy fields',async(
  const p=payload('Device'),e=environment(p);await wait(()=>e.c.strydeAccountStatus().status==='Not signed in');
  e.run("state.coaching.testLabel='Edited';save()");
  const stored=JSON.parse(e.storage.getItem('stryde-v1'));
- assert.equal(stored.coaching.testLabel,'Edited');delete stored.coaching;const legacy=copy(p);delete legacy.coaching;assert.deepEqual(stored,legacy);
+ assert.equal(stored.coaching.testLabel,'Edited');delete stored.coaching;const legacy=copy(p);delete legacy.coaching;legacy.week=1;legacy.selectedDay=5;assert.deepEqual(stored,legacy);
  const reload=environment(JSON.parse(e.storage.getItem('stryde-v1')));await wait(()=>reload.c.strydeAccountStatus().status==='Not signed in');assert.equal(reload.state().coaching.testLabel,'Edited');
 });
 
@@ -85,7 +85,7 @@ test('private photos remain authenticated, JPEG-only, private-bucket and account
  for(const call of e.c.__mock.calls){if(call.kind.startsWith('photo-'))assert.equal(call.bucket,'stryde-private-photos');if(call.table==='stryde_photo_entries'&&['select','delete'].includes(call.kind))assert.ok(call.filters.some(([key,value])=>key==='user_id'&&value===A));}
  await assert.rejects(api.download(B+'/other.jpg'),/denied/);await assert.rejects(api.download(A+'/../other.jpg'),/denied/);
  await assert.rejects(api.upload(new Blob(['x'],{type:'image/png'}),{reference_type:'goal',reference_id:'synthetic-goal',photo_date:'2026-10-09'}),/JPEG/);
- e.c.__mock.switchUser(null);await wait(()=>!e.c.strydeAccountStatus().signedIn);await assert.rejects(api.list('goal','synthetic-goal'),/Log in/);assert.deepEqual(e.state(),p);
+ e.c.__mock.switchUser(null);await wait(()=>!e.c.strydeAccountStatus().signedIn);await assert.rejects(api.list('goal','synthetic-goal'),/Log in/);assert.deepEqual(e.state(),{...p,week:1,selectedDay:5});
 });
 
 test('recovery remains a recovery plan with extra activity recorded separately',()=>{

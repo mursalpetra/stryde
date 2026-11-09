@@ -13,8 +13,17 @@ const EX=[
 let state=JSON.parse(localStorage.getItem('stryde-v1')||'null')||{week:1,logs:{},profile:{}};
 function normalize(){state.logs=state.logs||{};state.profile=state.profile||{};state.approvedLoads=state.approvedLoads||{};state.milestones=state.milestones||[{id:'shenzhen-half-2026',title:'Shenzhen Half Marathon',date:RACE,status:'active',kind:'race'}];}
 normalize();
-const now=new Date(),actualWeek=Math.floor((new Date(now.getFullYear(),now.getMonth(),now.getDate(),12)-START)/604800000)+1;
-if(!state.lastSeenV2&&actualWeek>=1&&actualWeek<=11){state.week=actualWeek;state.selectedDay=(now.getDay()+6)%7}
+// Navigation is transient: every fresh launch opens the current Shenzhen date.
+function trainingCalendarToday(at = new Date()) {
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(at).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
+  const date=`${parts.year}-${parts.month}-${parts.day}`,utc=Date.UTC(+parts.year,+parts.month-1,+parts.day);
+  const week=Math.floor((utc-Date.UTC(2026,9,5))/604800000)+1;
+  return {date,week,day:(new Date(utc).getUTCDay()+6)%7,inPlan:week>=1&&week<=WEEKS.length};
+}
+let now,actualWeek;
+function refreshCalendarClock(){const t=trainingCalendarToday();now=new Date(t.date+'T12:00:00');actualWeek=t.week;return t;}
+const launchDay=refreshCalendarClock();
+if(launchDay.inPlan){state.week=launchDay.week;state.selectedDay=launchDay.day}
 state.lastSeenV2=true;state.week=Math.max(1,Math.min(11,Number(state.week)||1));
 let view='today',sessionTab='workout',muscleSide='both',selectedExercise=null,sessionDay=null;
 const root=document.getElementById('root'),nav=document.getElementById('nav');

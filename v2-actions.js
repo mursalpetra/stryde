@@ -1,7 +1,7 @@
 
 window.go=function(v){view=v;render();window.scrollTo(0,0)};
-window.selectDay=function(d){state.selectedDay=Math.max(0,Math.min(6,d));save();render()};
-window.changeWeek=function(delta){state.week=Math.max(1,Math.min(11,state.week+delta));const d=new Date(),w=Math.floor((new Date(d.getFullYear(),d.getMonth(),d.getDate(),12)-START)/604800000)+1;state.selectedDay=state.week===w?(d.getDay()+6)%7:0;save();render()};
+window.selectDay=function(d){state.selectedDay=Math.max(0,Math.min(6,d));render()};
+window.changeWeek=function(delta){const t=refreshCalendarClock();state.week=Math.max(1,Math.min(WEEKS.length,state.week+delta));state.selectedDay=state.week===t.week?t.day:0;render()};
 window.openSession=function(d){sessionDay=d;sessionTab='workout';muscleSide='both';view='session';render();window.scrollTo(0,0)};
 window.setSessionTab=function(t){sessionTab=t;render()};
 window.setSide=function(t){muscleSide=t;render()};

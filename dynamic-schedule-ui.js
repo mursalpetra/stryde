@@ -298,9 +298,9 @@
   function refresh() {
     const date=today(),changed=date!==lastDate;lastDate=date;
     if(changed&&['today','plan'].includes(view)) {
-      const p=P.planOn(date);if(p){state.week=p.week;state.selectedDay=p.day;}
-      // Do not save navigation or rebuild an open form during rollover.
-      if(!dialog)window.render();else mount();
+      if(window.strydeDayWorkflows){window.strydeDayWorkflows.resume();}
+      else if(!document.querySelector('dialog[open]')){const p=P.planOn(date);if(p){state.week=p.week;state.selectedDay=p.day;}window.render();}
+      else mount();
     }else mount();
     armRollover();
   }

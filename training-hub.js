@@ -57,8 +57,9 @@
  function extraDefinition(id){return extraDraft?.definitions?.[id]||M.exerciseInfo(id);}
  function extraOptions(){return `<option value="custom">＋ Custom exercise…</option><optgroup label="Training exercises">${EX.map((e,i)=>`<option value="${i}" ${i===0?'selected':''}>${esc(e.name)}</option>`).join('')}</optgroup>${savedCustom().length?`<optgroup label="Your custom exercises">${savedCustom().sort((a,b)=>a.name.localeCompare(b.name)).map(e=>`<option value="${e.id}">${esc(e.name)} · ${esc(e.unit)}</option>`).join('')}</optgroup>`:''}`;}
  function extra(date=M.iso()){
-  const actual=M.validDate(date)&&date<=M.iso()?date:M.iso();extraRows=[];extraDraft={date:actual,definitions:{}};
+  const actual=M.validDate(date)&&date<=M.iso()?date:M.iso();extraRows=[];extraDraft={date:actual,definitions:{},owner:state};
   modal('Log extra workout',`<form id="hub-extra-form" class="hub-form"><p>Save what you actually did. The original plan stays in history. Future recommendations will adapt to this actual activity.</p><div class="hub-fields"><label>Activity<select name="kind" id="hub-extra-kind"><option value="strength">Strength workout</option><option value="run">Run</option><option value="walk">Walk</option><option value="other">Other activity</option></select></label><label>Actual date<input name="date" type="date" value="${actual}" max="${M.iso()}" required></label></div><label>Workout name<input name="name" maxlength="100" placeholder="e.g. Glutes & legs"></label><label>Full workout duration (minutes)<input name="minutes" type="number" min="1" max="1440" step="1" required inputmode="numeric"></label><section data-extra-run hidden><div class="hub-fields"><label>Distance (km)<input name="km" type="number" min="0.1" max="200" step="0.01"></label><label>Effort (1–10)<input name="rpe" type="number" min="1" max="10"></label></div><label>Terrain<select name="terrain"><option value="">Not recorded</option><option value="flat">Flat outdoors</option><option value="hills">Hills</option><option value="treadmill">Treadmill</option><option value="trail">Trail</option></select></label><p class="hub-footnote">Do not manually enter a run that will also import from Strava; link duplicates in Progress when needed.</p></section><section data-extra-strength><h3>Your exercises</h3><div id="hub-extra-exercises"></div><label for="hub-add-exercise">Choose an exercise</label><select id="hub-add-exercise">${extraOptions()}</select><div id="hub-custom-fields" class="hub-custom-fields" hidden><label for="hub-custom-name">Custom exercise name<input id="hub-custom-name" maxlength="80" placeholder="e.g. Adductor machine" autocomplete="off" disabled></label><label for="hub-custom-unit">Weight unit<select id="hub-custom-unit" disabled>${customUnits.map(u=>`<option value="${u}">${u}</option>`).join('')}</select></label><p class="hub-footnote">Give different machines or variations distinct names. This exercise is saved for reuse when you save the workout.</p></div><button type="button" class="btn" data-hub="add-exercise">Add exercise</button><p class="hub-footnote">Cannot find your machine? Choose Custom exercise. Add only what you did; enter reps like 10,10,8.</p><p class="hub-custom-message" role="status"></p></section><label>Notes<textarea name="notes" maxlength="1000" placeholder="How did the session feel?"></textarea></label><p class="hub-error" role="alert"></p><button class="btn orange" type="submit">Save actual workout</button></form>`);
+  window.strydeDayWorkflows?.mountExtra(dialog.querySelector('#hub-extra-form'));
  }
  function extraMessage(message){const box=dialog?.querySelector('.hub-custom-message');if(box)box.textContent=message;}
  function toggleCustom(){
@@ -94,6 +95,8 @@
   box.querySelector('input').focus();
  }
  function saveExtra(form){
+  if(extraDraft?.owner!==state)throw Error('Your account data changed. Reopen this form before saving.');
+  window.strydeDayWorkflows?.validateExtra(form);
   const data=new FormData(form),kind=String(data.get('kind')),date=String(data.get('date')),minutes=M.n(data.get('minutes'));
   if(!['strength','run','walk','other'].includes(kind)||!M.validDate(date)||date>M.iso()||!(minutes>=1&&minutes<=1440))throw Error('Enter an actual date and duration.');
   if(kind==='strength'&&form.querySelector('#hub-add-exercise').value==='custom'&&cleanName(form.querySelector('#hub-custom-name').value))throw Error('Tap Add custom exercise to include that movement, or clear its name before saving.');
@@ -107,7 +110,7 @@
    if(definition.custom){ex[id].name=definition.name;ex[id].custom=true;definitions[id]={...definition,id,custom:true};}
   }
   const km=M.n(data.get('km'));if(kind==='run'&&!(km>0&&km<=200))throw Error('Enter the actual run distance.');
-  const item={id:crypto.randomUUID(),date,kind,status:'done',name:String(data.get('name')||'').trim().slice(0,100)||({strength:'Extra strength workout',run:'Extra run',walk:'Walk',other:'Other activity'}[kind]),durationMinutes:minutes,distanceKm:['run','walk'].includes(kind)?km:null,rpe:M.n(data.get('rpe')),terrain:String(data.get('terrain')||''),exercises:ex,notes:String(data.get('notes')||'').slice(0,1000),createdAt:new Date().toISOString()};
+  const item={id:crypto.randomUUID(),date,kind,status:'done',name:String(data.get('name')||'').trim().slice(0,100)||({strength:'Extra strength workout',run:'Extra run',walk:'Walk',other:'Other activity'}[kind]),durationMinutes:minutes,distanceKm:['run','walk'].includes(kind)?km:null,rpe:M.n(data.get('rpe')),terrain:String(data.get('terrain')||''),exercises:ex,notes:String(data.get('notes')||'').slice(0,1000),createdAt:new Date().toISOString(),...(window.strydeDayWorkflows?.extraMetadata(form)||{})};
   const oldWorkouts=state.extraWorkouts,oldCatalog=state.customExercises;
   state.extraWorkouts=[...(Array.isArray(oldWorkouts)?oldWorkouts:[]),item];
   if(Object.keys(definitions).length)state.customExercises={...(oldCatalog&&typeof oldCatalog==='object'&&!Array.isArray(oldCatalog)?oldCatalog:{}),...definitions};
@@ -130,7 +133,7 @@
    strip?.parentElement.append(box);
   }
  }
- function dayDetail(date){const rows=all().filter(r=>r.date===date),p=M.planOn(date);modal(dateLabel(date),`<p>Planned: ${esc(p?.name||'No scheduled session')}</p>${rows.map(r=>`<article class="hub-record"><div><b>${esc(r.name)}</b><small>${esc(r.source)}</small></div><span>${r.distance?rnd(r.distance)+' km':r.minutes?rnd(r.minutes)+' min':'Sets recorded'}</span></article>`).join('')||'<p>No completed activity has been logged.</p>'}${date<=M.iso()?`<button class="btn orange" data-hub="extra-date" data-date="${date}">Log workout on this date</button>`:''}${p?`<button class="btn" data-hub="open-plan" data-week="${p.week}" data-day="${p.day}">Open scheduled day</button>`:''}`);}
+ function dayDetail(date){if(window.strydeDayWorkflows)return window.strydeDayWorkflows.dayDetail(date);const rows=all().filter(r=>r.date===date),p=M.planOn(date);modal(dateLabel(date),`<p>Planned: ${esc(p?.name||'No scheduled session')}</p>${rows.map(r=>`<article class="hub-record"><div><b>${esc(r.name)}</b><small>${esc(r.source)}</small></div><span>${r.distance?rnd(r.distance)+' km':r.minutes?rnd(r.minutes)+' min':'Sets recorded'}</span></article>`).join('')||'<p>No completed activity has been logged.</p>'}${date<=M.iso()?`<button class="btn orange" data-hub="extra-date" data-date="${date}">Log workout on this date</button>`:''}${p?`<button class="btn" data-hub="open-plan" data-week="${p.week}" data-day="${p.day}">Open scheduled day</button>`:''}`);}
  const originalRender=window.render;window.render=function(...args){if(view==='progress'){progress();return;}const r=originalRender.apply(this,args);calendar();return r;};
  // Let extra strength sessions guide the next prescription without rewriting planned logs.
  const oldLast=window.lastLift;window.lastLift=function(i){const latest=M.records(state,[]).filter(r=>r.kind==='strength'&&r.exercises?.[i]&&M.n(r.exercises[i].weight)>0&&M.unit(r.exercises[i].unit)===M.unit(EX[i].unit)).at(-1);return latest?{...latest.exercises[i],performed_on:latest.date}:oldLast(i);};
@@ -140,7 +143,7 @@
   else if(a==='photo-due'){tab='photos';window.go('progress');}
   else if(a==='calendar-mode'){calendarMode=calendarMode==='week'?'month':'week';window.render();}
   else if(a==='calendar-prev'||a==='calendar-next'){const d=new Date(calendarMonth+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+(a==='calendar-next'?1:-1));calendarMonth=d.toISOString().slice(0,7);window.render();}
-  else if(a==='day')dayDetail(b.dataset.date);else if(a==='open-plan'){state.week=Number(b.dataset.week);state.selectedDay=Number(b.dataset.day);close();window.go('today');}
+  else if(a==='day')dayDetail(b.dataset.date);else if(a==='open-plan'){state.week=Number(b.dataset.week);state.selectedDay=Number(b.dataset.day);close();window.go('plan');}
   else if(a==='snooze-weight'){state.bodyCheckSettings={...state.bodyCheckSettings,snoozeUntil:M.add(M.iso(),1)};safeSave();progress();}
   else if(a==='delete-extra'&&confirm('Remove this extra workout? Future recommendations will update from the remaining records.')){const r=(state.extraWorkouts||[]).find(x=>x.id===b.dataset.id);if(r)r.deleted=true;safeSave();window.render();}
   else if(a==='delete-weight'&&confirm('Remove this weight check?')){state.bodyChecks=(state.bodyChecks||[]).filter(x=>x.id!==b.dataset.id);safeSave();progress();}
@@ -155,7 +158,7 @@
  });
  window.addEventListener('stryde-runs-changed',()=>{if(view==='progress'&&['overview','strength'].includes(tab))progress();else if(['today','plan'].includes(view))calendar();});
  window.addEventListener('stryde-account-change',()=>{close();requestAnimationFrame(()=>{if(view==='progress'&&tab!=='body')progress();else if(['today','plan'].includes(view))calendar();});});
- window.strydeTrainingHub={progress,extra,calendar,all,setTab:t=>{tab=t;window.go('progress')}};
+ window.strydeTrainingHub={progress,extra,calendar,all,dayDetail,focusCalendar:date=>{calendarMonth=date.slice(0,7);},setTab:t=>{tab=t;window.go('progress')}};
  if(view==='progress')progress();else calendar();
 })();
 

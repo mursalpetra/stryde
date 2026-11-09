@@ -6,6 +6,9 @@
   const ROOT=document.getElementById('root');
   let loadSucceeded=false;
   let rows=[],connected=false,busy=false,notice='',lastRead=0,authSeen=null,serial=0;
+  const datedRows=new Map();
+  const combined=()=>Array.from(new Map([...datedRows.values(),...rows].map(a=>[String(a.activity_id),a])).values()).sort((a,b)=>String(b.started_at).localeCompare(String(a.started_at)));
+  window.addEventListener('stryde-account-change',()=>{datedRows.clear();rows=[];serial++;busy=false;loadSucceeded=false;lastRead=0;authSeen=null;connected=false;});
   const html=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const signedIn=()=>window.strydeAccountStatus?window.strydeAccountStatus().signedIn:Boolean(ROOT?.querySelector('.stryde-account-button.is-signed-in'));
   const number=v=>v===null||v===undefined||v===''?null:Number.isFinite(Number(v))?Number(v):null;
@@ -79,7 +82,13 @@
   if(ROOT)new MutationObserver(()=>{if(pages())refreshAccount();else if(authSeen&&!signedIn()){serial++;rows=[];connected=false;lastRead=0;busy=false;authSeen=false;}}).observe(ROOT,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
   const previousRender=window.render;
   window.render=function(...args){const result=previousRender.apply(this,args);mount();return result;};
-  window.strydeStravaSnapshot=()=>({rows:signedIn()?rows.map(a=>({...a})):[],connected:signedIn()&&connected,loaded:loadSucceeded&&!busy,attempted:Boolean(lastRead),notice,busy,userId:window.strydeAccountStatus?.().userId||null,limited:rows.length>=50});
+  window.strydeStravaSnapshot=()=>({rows:signedIn()?combined().map(a=>({...a})):[],connected:signedIn()&&connected,loaded:loadSucceeded&&!busy,attempted:Boolean(lastRead),notice,busy,userId:window.strydeAccountStatus?.().userId||null,limited:rows.length>=50});
+  // Only authenticated responses for the same active account enter the in-memory history.
+  window.strydeMergeStravaDay=(items,uid)=>{
+    if(!signedIn()||!uid||uid!==window.strydeAccountStatus?.().userId)return false;
+    for(const a of items||[])if(/^\d+$/.test(String(a.activity_id))&&Number.isFinite(Date.parse(a.started_at)))datedRows.set(String(a.activity_id),{...a});
+    connected=true;paint();window.dispatchEvent(new Event('stryde-runs-changed'));return true;
+  };
   window.strydeMountRuns=mount;
   window.strydeConnectStrava=connect;
   window.strydeSyncStrava=()=>load(true);
