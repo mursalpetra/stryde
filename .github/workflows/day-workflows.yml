@@ -1,0 +1,42 @@
+name: Install STRYDE day workflows
+on:
+  push:
+    branches: [main]
+    paths: ['tools/install-day-workflows.mjs', '.github/workflows/day-workflows.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stryde-day-workflows
+  cancel-in-progress: false
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Verify browser-tested new assets
+        run: |
+          echo '615b68620ce39453b5f80d4a1546a9000b10acef8d4c9b10f838f07006411ec0  day-workflows.js' | sha256sum -c -
+          echo 'e0c0659ec0ce7cff8da3829728dd7916b706fc34779267f3d5bf0e803f2eb17c  day-workflows.css' | sha256sum -c -
+      - name: Apply guarded changes without overwriting newer work
+        run: node tools/install-day-workflows.mjs
+      - name: Check JavaScript
+        run: |
+          for file in v2-core.js v2-views.js v2-actions.js training-hub.js account-cloud.js strava-runs.js dynamic-schedule-ui.js day-workflows.js; do
+            node --check "$file"
+          done
+          git diff --check
+      - name: Account and adaptive-schedule regression tests
+        run: |
+          node tests/test_account_model.mjs
+          node tests/test_dynamic_schedule.mjs
+      - name: Publish only the verified application changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v2-core.js v2-views.js v2-actions.js training-hub.js account-cloud.js strava-runs.js dynamic-schedule-ui.js index.html tests/test_account_model.mjs
+          if ! git diff --cached --quiet; then
+            git commit -m 'Fix Today calendar; add planned-vs-actual day views, editable workout presets and dated Strava imports'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
