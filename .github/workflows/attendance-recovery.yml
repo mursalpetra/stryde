@@ -1,0 +1,33 @@
+name: Install attendance and recovery days
+on:
+  push:
+    branches: [main]
+    paths: ['tools/install-attendance-recovery.py', '.github/workflows/attendance-recovery.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stryde-attendance-recovery
+  cancel-in-progress: false
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Apply guarded and browser-tested source update
+        run: python tools/install-attendance-recovery.py
+      - name: Check JavaScript syntax and regressions
+        run: |
+          for file in *.js; do node --check "$file"; done
+          node --test tests/test_account_model.mjs tests/test_dynamic_schedule.mjs tests/test_attendance_schedule.mjs
+          git diff --check
+      - name: Commit only verified application files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v2-core.js v2-views.js v2-actions.js workout-timer-full.js day-workflows.js dynamic-schedule-model.js dynamic-schedule-ui.js account-cloud.js index.html run-weather.js run-day.js training-hub.js progress-model.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Display private gym attendance and protect dated recovery availability without changing workout history'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
