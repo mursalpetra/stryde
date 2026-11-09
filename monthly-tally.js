@@ -1,4 +1,4 @@
-/* Monthly calendar target and completed-workout tally.
+/* Shared monthly workout tally for the main dashboard only.
  * Read-only derived UI: never creates workouts, changes plans, or stores private records.
  * Attendance-only visits stay separate; the target is the dated baseline, not catch-up work.
  */
@@ -74,43 +74,14 @@
       <details class="month-tally-method"><summary>How this tally works</summary><p>Completed = logged runs + strength sessions, including extra workouts on recovery days. Two separate sessions on one date count as two workouts. Linked duplicate runs count once; unconfirmed possible duplicates are flagged for review.</p><p>${t.goal===null?'There is no dated training plan for this month. Your actual records still appear; no target is invented.':`Target = ${t.target.run} scheduled runs + ${t.target.strength} strength sessions in the dated baseline calendar. Recovery days are excluded, using the availability in effect on each date.${t.partialPlan?` This month’s plan covers ${label(t.coveredFrom)}–${label(t.coveredTo)}; completed records cover the full month.`:''} The target stays stable when sessions are missed; adaptive recovery can reduce the suggested work. It is not a catch-up quota.`}</p><p>Gym attendance proves a visit, not the type or duration of a workout. Repeated check-in scans on the same date count as one attendance day. Your saved history and plan are not changed by this tally.</p></details>`;
   }
 
+  // The homepage dashboard in foundation-coach.js is the only visual summary.
+  // Keep mount() as a cleanup-only compatibility hook; never inject a calendar card.
   function mount() {
     const root = document.getElementById('root');
-    if (!root || !['today','plan'].includes(typeof view === 'undefined' ? '' : view)) return;
-    const calendar = root.querySelector('.hub-month[data-hub-mounted="calendar"]');
-    if (!calendar) return;
-    const month = calendar.querySelector('.hub-month-grid [data-date]')?.dataset.date?.slice(0,7);
-    const account = window.strydeAccountStatus?.() || {};
-    const runSnapshot = window.strydeStravaSnapshot?.() || {rows:[],loaded:false};
-    const attendance = window.strydeAttendance?.snapshot?.() || {rows:[],loaded:false};
-    // Private providers already scope records to the active account. Recheck identity as defense in depth.
-    const imported = account.signedIn && runSnapshot.userId === account.userId ? runSnapshot.rows || [] : [];
-    const rows = P.records(state, imported);
-    const tally = calculate(month, rows, account.signedIn ? attendance.rows || [] : []);
-    if (!tally) return;
-    const note = sourceNote(account, runSnapshot, attendance), signature = JSON.stringify([tally,note]);
-    let panel = calendar.querySelector('[data-month-tally]');
-    if (panel?.dataset.tallySignature === signature) return;
-    if (!panel) {
-      panel = document.createElement('section'); panel.className='month-tally'; panel.setAttribute('data-month-tally',month);
-      panel.setAttribute('aria-label','Monthly workout target and completed tally');
-      const grid=calendar.querySelector('.hub-month-grid'); if (!grid) return; grid.before(panel);
-    }
-    const expanded = panel.querySelector('details')?.open || false;
-    panel.dataset.tallySignature = signature; panel.dataset.monthTally=month;
-    panel.innerHTML = markup(tally,note);
-    if (expanded) panel.querySelector('details').open=true;
+    if (!root) return;
+    root.querySelectorAll('[data-month-tally]').forEach(panel => panel.remove());
   }
 
   window.strydeMonthlyTally={calculate,mount,sourceNote,markup};
-  const root=document.getElementById('root');
-  if(!root)return;
-  let scheduled=false;
-  const queue=()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;mount();});};
-  // calendar() is also called directly after imports, so watch its mounted subtree as well as render().
-  new MutationObserver(queue).observe(root,{childList:true,subtree:true});
-  for(const name of ['stryde-runs-changed','stryde-attendance-changed','stryde-account-change'])window.addEventListener(name,queue);
-  const previousRender=window.render;
-  if(typeof previousRender==='function')window.render=function(...args){const result=previousRender.apply(this,args);mount();return result;};
   mount();
 })();
